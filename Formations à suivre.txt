@@ -1,0 +1,9 @@
+API Web et service Web => https://gayerie.dev/docs/jakartaee/http/introduction.html
+
+Spring et l'accès aux bases de données => https://gayerie.dev/docs/spring/spring/spring_dao.html
+
+Spring web mvc => https://gayerie.dev/docs/spring/spring/spring_mvc_intro.html
+
+- passer sur intelliJ
+
+- se former sur la mémoire Java
