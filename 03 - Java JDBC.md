@@ -1,6 +1,6 @@
 # <u>**JDBC (Java DataBase Connectivity)**</u>
 
-
+## Connection à une base de données
 
 **JDBC** est l’API standard pour interagir avec des bases de données relationnelles depuis une application Java.
 
