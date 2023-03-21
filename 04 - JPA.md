@@ -310,3 +310,231 @@ entityManager.getTransaction().commit();
 
 ### La relation 1:1
 
+On utilise l'annotation **@OneToOne** :
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @OneToOne
+  @JoinColumn(name = "abonnement_fk")
+  private Abonnement abonnement;
+
+  // getters et setters omis ...
+}
+```
+
+Pour JPA, la table **Individu** contient donc une colonne qui est une clé étrangère contenant la clé d'un **Abonnement**. Par défaut, JPA s'attend à ce que cette colonne se nomme **ABONNEMENT_ID**, mais il est possible de changer ce nom grâce à l'annotation **@JoinColumn**.
+
+### La relation n:1
+
+On utilise l'annotation **@ManyToOne** :
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToOne
+  private Societe societe;
+
+  // getters et setters omis ...
+}
+```
+
+Même remarque concernant l'annotation **@JoinColumn**.
+
+Plutôt que par une colonne, il est possible d'indiquer à la JPA qu'elle doit passer par une table d'association pour établir la relation entre les deux entités avec l'annotation **@JoinTable** :
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToOne
+  // déclaration d'une table d'association
+  @JoinTable(name = "societe_individu",
+             joinColumns = @JoinColumn(name = "individu_id"),
+             inverseJoinColumns = @JoinColumn(name = "societe_id"))
+  private Societe societe;
+
+  // getters et setters omis ...
+}
+```
+
+### La relation 1:n
+
+On utilise l'annotation **@OneToMany** :
+
+Cette annotation ne peut être utilisée qu'avec une collection d'éléments.
+
+```java
+@Entity
+public class Societe {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @OneToMany
+  private List<Individu> employes = new ArrayList<>();
+
+  // getters et setters omis ...
+}
+```
+
+Pour JPA, la table **Individu** contient donc une colonne qui est une clé étrangère contenant la clé d'une **Societe**. Par défaut, JPA s'attend à ce que cette colonne se nomme **SOCIETE_ID**, mais il est possible de changer ce nom grâce à l'annotation **@JoinColumn**.
+
+ Il est possible d'indiquer à la JPA qu'elle doit passer par une table d'association pour établir la relation entre les deux entités avec l'annotation **@JoinTable** :
+
+```java
+@Entity
+public class Societe {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @OneToMany
+  @JoinTable(name = "societe_individu",
+             joinColumns = @JoinColumn(name = "societe_id"),
+             inverseJoinColumns = @JoinColumn(name = "individu_id"))
+  private List<Individu> employes = new ArrayList<>();
+
+  // getters et setters omis ...
+}
+```
+
+### La relation n:n
+
+On utilise l'annotation **@ManyToMany** :
+
+Cette annotation ne peut être utilisée qu'avec une collection d'éléments.
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToMany
+  @JoinTable(name = "individu_competence",
+             joinColumns = @JoinColumn(name = "individu_id"),
+             inverseJoinColumns = @JoinColumn(name = "competence_id"))
+  private List<Competence> competences = new ArrayList<>();
+
+  // getters et setters omis ...
+}
+```
+
+L'annotation **@ManyToMany** implique qu'il existe une **table d'association**. 
+
+### Les relations bi-directionnelles
+
+Il est parfois nécessaire qu'un lien entre deux objets soit navigable dans les deux sens. Il faut utiliser l'annotation **@MappedBy** :
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToMany
+  @JoinTable(name = "individu_competence",
+             joinColumns = @JoinColumn(name = "individu_id"),
+             inverseJoinColumns = @JoinColumn(name = "competence_id"))
+  private List<Competence> competences = new ArrayList<>();
+
+  // getters et setters omis ...
+}
+```
+
+```java
+@Entity
+public class Competence {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToMany(mappedBy = "competences")
+  private List<Individu> individus = new ArrayList<>();
+
+  // getters et setters omis ...
+}
+```
+
+Cette annotation permet d'éviter la redondance d'information.
+
+### La propagation en cascade
+
+Avec JPA, il est possible de définir la portée des modifications effectuées sur une entité sur ses entités liées. Les annotations spécifiant une relation possèdent un attribut **cascade** permettant de cibler les opérations concernées par les modifications :
+
+	- **ALL**
+	- **DETACH**
+	- **MERGE**
+	- **PERSIST**
+	- **REFRESH**
+	- **REMOVE**
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToOne(cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+  private Societe societe;
+
+  // getters et setters omis ...
+}
+```
+
+Ici, on précise que l'instance de **Societe** doit être enregistrée en BDD (si nécessaire) au moment où l'instance d'**Individu** sera elle-même enregistrée. Même chose pour un appel au **merge** sur une instance d'**Individu**.
+
+### Fetch lazy ou fetch eager
+
+Lorsque JPA doit charge une entité depuis la BDD, la question est de savoir quelles informations doivent être chargées. Quels attributs de l'entité doivent être chargés (**fetch**) ?
+
+- **eager** : l'information doit être chargée systématiquement lorsque l'entité est chargée (par défaut pour **@Basic**, **@OneToOne**, **@ManyToOne**)
+- **lazy** : l'information ne sera chargée qu'à la demande (par défaut pour **@OneToMany** et **@ManyToMany**)
+
+```java
+@Entity
+public class Individu {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  private Societe societe;
+
+  /*
+   * Stocke la photo d'identité sous une forme binaire. Comme l'information peut être
+   * volumineuse, on déclare un fetch lazy pour ne déclencher le chargement qu'à l'appel
+   * de getPhoto(), c'est-à-dire quand l'application en a vraiment besoin.
+   */
+  @Lob
+  @Basic(fetch = FetchType.LAZY)
+  private byte[] photo;
+
+  // getters et setters omis ...
+}
+```
