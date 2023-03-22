@@ -104,3 +104,26 @@ Les en-têtes (**HEADERS**) de requête et de réponse permettent d'enrichir le 
 - **Content-Length** (requête et réponse) : permet de communiquer la taille en octets du corps du message
 
 ## La gestion du cache
+
+### Serveurs intermédiaires (proxy)
+
+Un **serveur d'origine** est celui qui fait autorité pour répondre à une requête. Cependant, HTTP supporte le recours à des **serveurs intermédiaires**, formant ainsi une chaîne de connections entre le client qui émet la requête initiale (**user agent**) et le serveur d'origine.
+
+Un intermédiaire agit à la fois comme un **serveur** et un **client**.
+
+HTTP définit trois types d'intermédiaires ;
+
+- **proxy** : il est utilisé par un client pour transmettre des messages à sa place. Il est en général configuré pour accepter (ou refuser) des requêtes pour des URI particulières.
+- **reverse proxy** (ou **gateway**) : il agit comme un serveur d'origine, souvent utilisés comme accélérateurs HTTP (avec mise en place de cache). Ils peuvent également isoler des serveurs d'origine d'un réseau public ou non sécurisé
+- **tunnel** : il agit comme un relais entre deux connections sans changer la nature des messages échangés
+
+Un **proxy** et un **reverse proxy** sont souvent pourvus d'un système de **cache**. Un reverse proxy, utilisé comme accélérateur, peut décider d'écourter la chaîne de connections en répondant directement à partir des données dont il dispose en cache. Il aura besoin de contacter de temps en temps le serveur d'origine pour renouveler le contenu de son cache.
+
+### Principe
+
+Un cache est un **ensemble de réponses** précédemment reçues chacune associée à une **clé d'identification** correspondant à une requête.
+
+Si une nouvelle requête est émise avec la même clé d'identification, le **gestionnaire de cache** peut fournir une réponse à la place du serveur d'origine. La clé d'identification correspond à l'URI de la ressource, la méthode HTTP et *certains* en-têtes de la requête.
+
+Le gestionnaire de cache est consulté **avant** la requête vers le serveur.
+
