@@ -35,7 +35,11 @@ C'est lui qui est responsable de la création des instances et des injections de
 
 Un contexte d'application est un **composant** qui contient la **définition** des **objets** que le conteneur IoC doit créer ainsi que leurs **interdépendances**.
 
+## Création du contexte et des beans
+
 L'API Spring Framework définit l'interface ***ApplicationContext*** pour laquelle plusieurs implémentations existent et donc plusieurs façons de définir un contexte d'application également. L'une d'entre elles est la classe ***AnnotationConfigApplicationContext*** qui permet d'utiliser des **annotations** sur les classes de l'application pour indiquer au conteneur IoC comment définir les objets.
+
+Il est possible de créer une instance d'un objet (un **bean**) et de l'enregistrer dans le contexte d'application via l'annotation ***@Bean***.
 
 Exemple :
 
@@ -61,7 +65,7 @@ public class TimeApplication {
 }
 ```
 
-Spring va créer une instance de la classe ***TimeApplication***, puis il va chercher des annotations particulières sur cet objet. La méthode ***maintenant()*** possède l'annotation ***@Bean*** : Spring va donc l'appeler et l'objet ***LocalTime*** qu'elle retourne sera placé dans le contexte d'application sous le nom ***maintenant***.
+Spring va ici créer une instance de la classe ***TimeApplication***, puis il va chercher des annotations particulières sur cet objet. La méthode ***maintenant()*** possède l'annotation ***@Bean*** : Spring va donc l'appeler et l'objet ***LocalTime*** qu'elle retourne sera placé dans le contexte d'application sous le nom ***maintenant***.
 
 Il est possible de donner plusieurs noms à un même **bean** : 
 
@@ -71,3 +75,71 @@ public LocalTime getLocalTime() {
   return LocalTime.now();
 }
 ```
+
+## Portée (scope) d'un bean
+
+Les beans ajoutés au contexte d'application ont une portée. Par défaut, Spring en définit deux :
+
+- **singleton** (par défaut) : une seule instance de ce bean existe dans le conteneur IoC
+- **prototype** : à chaque appel du bean, une nouvelle instance est retournée
+
+La portée est changée via l'annotation ***@Scope***.
+
+Exemple :
+
+```java
+  @Bean
+  @Scope("prototype")
+  public LocalTime maintenant() {
+    return LocalTime.now();
+  }
+```
+
+## Injection de beans
+
+Il est possible d'injecter un bean dans une méthode.
+
+Exemple :
+
+```java
+public class TaskApplication {
+
+  @Bean
+  public Supplier<String> dataSupplier() {
+    return new HardcodedSupplier();
+  }
+
+  @Bean
+  public Runnable task(Supplier<String> dataSupplier) {
+    return new WriterService(dataSupplier);
+  }
+
+  public static void main(String[] args) throws InterruptedException {
+    try (AnnotationConfigApplicationContext appCtx
+                  = new AnnotationConfigApplicationContext(TaskApplication.class)) {
+      appCtx.getBean(Runnable.class).run();
+    }
+  }
+}
+```
+
+Ici, la méthode ***<u>task</u>*** fabrique un bean car elle possède l'annotation **@Bean**. Elle attend un paramètre en argument, ce qui signifie que Spring va devoir trouver dans le contexte d'application un bean ayant pour nom "dataSupplier" et qui est compatible avec le type. C'est la méthode ***dataSupplier*** qui fournit ce bean.
+
+Ce type d'**injection** permet de garantir un niveau d'**abstraction** important entre les différents objets.
+
+Le Spring Framework est capable de **déduire** l'ordre d'appel des différentes méthodes de fabrique en analysant le **graphe** des **dépendances**.
+
+## Méthodes d'initialisation et de destruction
+
+Le conteneur IoC de Spring permet de gérer le cycle de vie des beans. Il permet notamment d'invoquer des méthodes d'initialisation et de destruction de ces beans. Cela se fait via l'annotation ***@Bean*** et les attributs ***initMethod*** et ***destroyMethod***.
+
+Exemple :
+
+```java
+  @Bean(initMethod = "readData")
+  public Supplier<String> dataSupplier() {
+    return new FileDataSupplier();
+  }
+```
+
+# Déclaration par annotations
