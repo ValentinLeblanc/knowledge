@@ -249,3 +249,37 @@ public class ValueSupplier implements Supplier<String> {
 Cette annotation devient très utilise pour charger des données depuis un fichier de configuration en utilisant le langage d'expression **SpEL**.
 
 ## Détection automatique de composants (component scan)
+
+Spring peut également rechercher dans les packages les classes à instancier sous forme de beans dans le contexte d'application.
+
+Ceci se fait grâce à l'annotation ***@ComponentScan*** placée sur la classe qui est passée en paramètre de création du contexte d'application.
+
+Le framework va scruter toutes les classes qui sont présentes dans les sous-packages de cette classes et créer un bean pour celles qui ont l'annotation ***@Component***.
+
+Exemple :
+
+```java
+@ComponentScan
+public class TaskApplication {
+  public static void main(String[] args) throws InterruptedException {
+    try (AnnotationConfigApplicationContext appCtx =
+                  new AnnotationConfigApplicationContext(TaskApplication.class)) {
+      appCtx.getBean(Runnable.class).run();
+    }
+  }
+}
+```
+
+```java
+@Component
+public class HardcodedSupplier implements Supplier<String> {
+  @Override
+  public String get() {
+    return "Hello world";
+  }
+}
+```
+
+Si plusieurs constructeurs sont présents dans une classe **component**, il faut utiliser l'annotation ***@Autowired*** pour indiquer à Spring celui qu'il doit utiliser.
+
+Si le constructeur a plusieurs paramètres, Spring va essayer de résoudre les dépendances pour chaque paramètre. Il est possible d'ajouter les annotations ***@Value*** et ***@Qualifier*** pour chaque paramètre.
