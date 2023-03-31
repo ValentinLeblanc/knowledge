@@ -143,3 +143,109 @@ Exemple :
 ```
 
 # Déclaration par annotations
+
+L'annotation ***@Bean*** permet d'ajouter des objets dans un contexte d'application sans être intrusif dans le code des classes. En effet, dans l'exemple précédent, on injecte via le constructeur d'un objet un autre objet sans modifier leurs classes.
+
+Pour les classes que nous développons spécifiquement pour l'application il est possible d'utiliser d'autres annotations, plus **intrusives**.
+
+## @Autowired
+
+Cette annotation active l'injection automatique de dépendance. Elle peut être placée sur un **constructeur**, un **setter** ou directement sur un **attribut**.
+
+Exemple :
+
+```java
+public class WriterService implements Runnable {
+
+  @Autowired
+  private Supplier<String> supplier;
+
+  @Override
+  public void run() {
+    System.out.println(supplier.get());
+  }
+
+}
+```
+
+Nous n'avons plus besoin du constructeur. Spring est capable d'**injecter** le bean correspondant (à condition qu'il n'en existe qu'un seul).
+
+La classe principale de l'application devient alors : 
+
+```java
+public class TaskApplication {
+
+  @Bean
+  public Supplier<String> dataSupplier() {
+    return new HardcodedSupplier();
+  }
+
+  @Bean
+  public Runnable task() {
+    return new WriterService();
+  }
+
+  public static void main(String[] args) throws InterruptedException {
+    try (AnnotationConfigApplicationContext appCtx =
+                  new AnnotationConfigApplicationContext(TaskApplication.class)) {
+      appCtx.getBean(Runnable.class).run();
+        
+}
+
+```
+
+Il est possible de définir une **dépendance optionnelle** avec ***@Autowired(required = false)***.
+
+## @Primary / @Qualifier
+
+Pour gérer automatiquement l'injection de dépendances, Spring se base sur le **type** du bean. Il va cherche un bean dans le contexte d'application qui est du type demandé ou qui implémente le type demandé.
+
+Si plusieurs beans sont compatibles, il choisit celui qui porte le même nom que l'attribut. Le nom d'un bean est définit soit par le nom de sa méthode de fabrique, soit par l'attribut ***name*** de l'annotation ***@Bean***.
+
+Si plusieurs beans sont compatibles mais qu'aucun d'eux ne porte le bon nom, l'exception ***UnsatisfiedDependencyException*** est levée.
+
+L'annotation ***@Primary*** permet d'indiquer qu'un bean devra être sélectionné en priorité en cas d'ambiguïté.
+
+L'annotation ***@Qualifier*** permet de préciser le nom du bean à injecter.
+
+Exemple :
+
+```java
+public class TaskManager {
+
+  @Autowired
+  @Qualifier("tache")
+  private Runnable runnable;
+
+  public void executer() {
+    runnable.run();
+  }
+
+}
+```
+
+## @Value
+
+Cette annotation est utilisable sur un **attribut** ou sur un **paramètre** de type **primitif** ou **String**.
+
+Elle donne la valeur par défaut à injecter.
+
+Exemple :
+
+```java
+public class ValueSupplier implements Supplier<String> {
+
+  @Value("hello world")
+  private String value;
+
+  @Override
+  public String get() {
+    return value;
+  }
+
+}
+```
+
+Cette annotation devient très utilise pour charger des données depuis un fichier de configuration en utilisant le langage d'expression **SpEL**.
+
+## Détection automatique de composants (component scan)

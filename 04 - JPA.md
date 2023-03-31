@@ -332,7 +332,7 @@ Pour JPA, la table **Individu** contient donc une colonne qui est une clé étra
 
 ### La relation n:1
 
-On utilise l'annotation **@ManyToOne** :
+xxxxxxxxxx <resource-ref>  <res-ref-name>nomDeLaDataSource</res-ref-name>  <res-type>javax.sql.DataSource</res-type></resource-ref>xml
 
 ```java
 @Entity

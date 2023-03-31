@@ -114,7 +114,7 @@ Un intermédiaire agit à la fois comme un **serveur** et un **client**.
 HTTP définit trois types d'intermédiaires ;
 
 - **proxy** : il est utilisé par un client pour transmettre des messages à sa place. Il est en général configuré pour accepter (ou refuser) des requêtes pour des URI particulières.
-- **reverse proxy** (ou **gateway**) : il agit comme un serveur d'origine, souvent utilisés comme accélérateurs HTTP (avec mise en place de cache). Ils peuvent également isoler des serveurs d'origine d'un réseau public ou non sécurisé
+- **reverse proxy** (ou **gateway / passerelle**) : il agit comme un serveur d'origine, souvent utilisés comme accélérateurs HTTP (avec mise en place de cache). Ils peuvent également isoler des serveurs d'origine d'un réseau public ou non sécurisé
 - **tunnel** : il agit comme un relais entre deux connections sans changer la nature des messages échangés
 
 Un **proxy** et un **reverse proxy** sont souvent pourvus d'un système de **cache**. Un reverse proxy, utilisé comme accélérateur, peut décider d'écourter la chaîne de connections en répondant directement à partir des données dont il dispose en cache. Il aura besoin de contacter de temps en temps le serveur d'origine pour renouveler le contenu de son cache.
