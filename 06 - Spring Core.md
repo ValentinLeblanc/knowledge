@@ -283,3 +283,85 @@ public class HardcodedSupplier implements Supplier<String> {
 Si plusieurs constructeurs sont présents dans une classe **component**, il faut utiliser l'annotation ***@Autowired*** pour indiquer à Spring celui qu'il doit utiliser.
 
 Si le constructeur a plusieurs paramètres, Spring va essayer de résoudre les dépendances pour chaque paramètre. Il est possible d'ajouter les annotations ***@Value*** et ***@Qualifier*** pour chaque paramètre.
+
+## Stéréotypes de composants
+
+- ***@Component*** : stéréotype générique pour indiquer à Spring d'instancier un bean
+
+- ***@Service*** : composant qui remplit une fonctionnalité centrale dans l'application
+- ***@Repository*** : composant référentiel qui représente un mécanisme permettant de stocker et de rechercher une collection d'objets
+- ***@Configuration*** : composant permettant de configurer le contexte d'application (en général, il contient des ***@Bean***)
+- ***@Controller*** / ***@RestController*** : composant qui joue le rôle d'un contrôleur dans une architecture MVC pour une application Web / API Web
+
+### Cas particulier de *@Configuration*
+
+Considérons l'exemple suivant :
+
+```java
+@Configuration
+public class TimeConfiguration {
+
+  @Bean
+  public LocalTime startTime() {
+    return LocalTime.now();
+  }
+
+  @Bean
+  public LocalTime endTime() {
+     return startTime().plusMinutes(1);
+  }
+}
+```
+
+Ici, sans l'annotation ***@Configuration***, l'appel à ***startTime()*** fait dans la méthode de fabrique ***endTime()*** devrait créer une nouvelle instance de ***LocalTime***. Or, avec ***@Configuration***, c'est bien le bean ***startTime*** qui est retourné. 
+
+## @Order
+
+Lorsque plusieurs beans sont du même type, il est possible d'ordonner leur instanciation avec ***@Order***.
+
+Exemple :
+
+```java
+@Component
+@Order(1)
+public class TacheDebut implements Runnable {
+
+  @Override
+  public void run() {
+    System.out.println("je suis la tâche de début");
+  }
+}
+```
+
+```java
+@Component
+@Order(2)
+public class TacheIntermediaire implements Runnable {
+
+  @Override
+  public void run() {
+    System.out.println("je suis la tâche intermédiaire");
+  }
+}
+```
+
+```java
+@Component
+@Order(3)
+public class TacheFin implements Runnable {
+
+  @Override
+  public void run() {
+    System.out.println("je suis la tâche de fin");
+  }
+}
+```
+
+Ceci est particulièrement utile lors de la mise en place de **filtres de traitement** d'une requête HTTP.
+
+## @DependsOn
+
+Il est parfois nécessaire d'indiquer explicitement la dépendance d'un bean pour un autre bean quand cette dépendance existe implicitement. Ceci est fait via l'annotation ***@DependsOn***.
+
+# Configuration d'une application
+
