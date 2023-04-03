@@ -365,3 +365,258 @@ Il est parfois nécessaire d'indiquer explicitement la dépendance d'un bean pou
 
 # Configuration d'une application
 
+Le fait de dépendre d'un IoC container offre un avantage conséquent à notre application : elle devient facilement **configurable**.
+
+En effet, Spring va pouvoir injecter des valeurs extraites des fichiers de configuration.
+
+## Lancement d'une application Spring Boot
+
+Spring Boot fournit notamment une classe nommée ***SpringApplication*** qui permet de bénéficier des mécanismes d'**auto-configuration**.
+
+Voici un exemple de lancement d'une application Spring Boot :
+
+```java
+@SpringBootApplication
+public class MyApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(MyApplication.class, args);
+  }
+
+}
+```
+
+## Spring Boot et le fichier application.properties
+
+Ce fichier, situé dans ***src/main/resources*** (pour un projet Maven), permet de paramétrer le comportement par défaut de l'application. Selon les dépendances déclarées dans notre projet et les valeurs des propriétés dans ce fichier, Spring Boot va adapter la création du contexte d'application.
+
+Pour plus d'informations sur les propriétés disponibles : https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html
+
+## Injection de propriétés avec @Value
+
+Nous pouvons injecter des propriétés définies dans le fichier ***application.properties*** via l'annotation ***@Value***.
+
+Exemple :
+
+```properties
+database.uri = jdbc:mariadb://localhost:3306/db
+database.login = root
+database.password = r00t
+```
+
+```java
+@Component
+public class SimpleConnectionProvider implements Supplier<Connection> {
+
+  @Value("${database.uri}")
+  private String databaseUri;
+  @Value("${database.login}")
+  private String login;
+  @Value("${database.password}")
+  private String password;
+  private Connection connection;
+
+  @PostConstruct
+  public void openConnection() throws SQLException {
+    connection = DriverManager.getConnection(databaseUri, login, password);
+  }
+
+  @PreDestroy
+  public void closeConnection() throws SQLException {
+    if(connection != null) {
+      connection.close();
+    }
+  }
+
+  @Override
+  public Connection get() {
+    return connection;
+  }
+}
+```
+
+Il est également possible d'injecter tout type d'objet, à la condition que la classe de l'objet possède un **constructeur** avec une ***String*** en paramètre ou bien une **méthode de fabrique** statique ***valueOf()*** avec une ***String*** en paramètre.
+
+Exemple :
+
+```properties
+remote.server.url = http://localhost/access
+```
+
+```java
+@Component
+public class RemoteServerAccess {
+
+  @Value("${remote.server.url}")
+  private URL url;
+
+}
+```
+
+Il est enfin possible de définir une valeur **par défaut** dans le cas où la propriété n'existe pas.
+
+Exemple :
+
+```java
+  @Value("${remote.server.timeout : 1000}")
+  private int timeout;
+```
+
+## Ajout de fichiers de propriétés avec @PropertySource
+
+Il est possible de définir d'autres fichiers de propriétés que application.properties :
+
+```java
+@SpringBootApplication
+@PropertySource({"classpath:config.properties", "file:config.properties"})
+public class MyApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(MyApplication.class, args);
+  }
+
+}
+```
+
+Les fichiers déclarés les plus à droite sont les plus prioritaires, ils surchargent les propriétés existantes. Le fichier application.properties est le plus prioritaire.
+
+Il est également possible de surcharger une propriété via la ligne de commande :
+
+```
+$ java -jar myapplication.jar --remote.server.timeout=20000
+```
+
+## Variables d'environnement
+
+Il est possible d'injecter des variables d'environnement. Elle sont prioritaires sur les propriétés.
+
+Exemple :
+
+```java
+@Value("${USER}")
+private String user;
+```
+
+## Le bean Environment
+
+Il est possible d'injecter un bean nommé ***Environment*** qui permet de réaliser des traitements plus complexes sur les valeurs des propriétés de l'application.
+
+Exemple :
+
+```java
+@Component
+public class DemoProperty {
+
+  @Autowired
+  private Environment env;
+
+  @PostConstruct
+  public void display() {
+    System.out.println(env.getProperty("database.login"));
+  }
+
+}
+```
+
+## Beans de priopriétés avec @ConfigurationProperties
+
+Avec Spring Boot, il est possible de définir un bean contenant certaines propriétés grâce à l'annotation ***@ConfigurationProperties***.
+
+Exemple :
+
+```properties
+database.uri = jdbc:mariadb://localhost:3306/db
+database.login = root
+database.password = r00t
+```
+
+```java
+@Configuration
+@ConfigurationProperties(prefix = "database")
+public class DatabaseConfig {
+
+  private String uri;
+  private String login;
+  private String password;
+
+  public String getUri() {
+    return uri;
+  }
+
+  public void setUri(String uri) {
+    this.uri = uri;
+  }
+
+  public String getLogin() {
+    return login;
+  }
+
+  public void setLogin(String login) {
+    this.login = login;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
+  }
+}
+```
+
+## Bean Validation
+
+Spring dispose d'une API permettant d'ajouter des **contraintes** sur les attributs d'une classe en détectant dès le lancement de l'application les valeurs qui ne sont pas conformes.
+
+Il faut pour cela ajouter une dépendance : 
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+Et utiliser l'annotation ***@Validated*** sur la classe instanciée par Spring.
+
+Exemple :
+
+```java
+@Configuration
+@ConfigurationProperties(prefix = "database")
+@Validated
+public class DatabaseConfig {
+
+  @Pattern(regexp = "jdbc:.*", message = "Database JDBC URI must start with jdbc:")
+  private String uri;
+  @NotBlank(message = "login cannot be blank")
+  private String login;
+  @NotNull(message = "password is mandatory but can be left empty")
+  private String password;
+
+  public String getUri() {
+    return uri;
+  }
+
+  public void setUri(String uri) {
+    this.uri = uri;
+  }
+
+  public String getLogin() {
+    return login;
+  }
+
+  public void setLogin(String login) {
+    this.login = login;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
+  }
+}
+```
