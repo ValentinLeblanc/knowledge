@@ -12,6 +12,10 @@ L'idée centrale du Spring Framework est de n'imposer aucune norme de développe
 
 L'inversion de contrôle est un **patron d'architecture** qui fonctionne selon le principe que le **flot d'exécution** d'un logiciel n'est plus sous le **contrôle** direct de l'application mais du **framework** ou de la couche logicielle sous-jacente. Un framework de ce type fournit une ossature, une charpente à mon application sur laquelle va reposer le code spécifique du développeur. 
 
+Traditionnellement, chaque objet est responsable de la **création** et de la **gestion** de ses propres **dépendances**, ce qui peut entraîner un fort **couplage** entre les objets et rendre le code difficile à **maintenir** et à faire **évoluer**. Les objets sont également plus difficilement **testables** individuellement.
+
+Avec l'inversion de contrôle, cette responsabilité est **inversée** et  déléguée à un **conteneur IoC**.
+
 Spring se base sur **l'injection de dépendances** pour mettre en place l'inversion de contrôle.
 
 ## L'injection de dépendance
