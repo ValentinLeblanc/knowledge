@@ -624,3 +624,86 @@ public class DatabaseConfig {
   }
 }
 ```
+
+# Le langage SpEL
+
+Un langage d'expression est un **langage** de programmation **simplifié** qui permet d'évaluer des **expressions** pour produire un résultat. Pour Java EE il existe un langage d'expression, nommé **EL**, utilisé notamment pour produire des pages Web dynamiquement (avec JSP ou JSF).
+
+Spring fournit son propre langage d'expression nommé **SpEL** (Spring Expression Language),, très similaire à EL. Il permet notamment l'évaluation d'expressions pour désigner un bean ou une valeur à injecter.
+
+Avec l'annotation ***@Value***, il faut utiliser la syntaxe ***#{expression}***.
+
+Exemple :
+
+Voici un bean de configuration.
+
+```java
+@Configuration
+public class RemoteServiceConfiguration {
+
+  @Value("${remote.service.url}")
+  private URL url;
+
+  @Value("${remote.service.connection.timeout : 1000}")
+  private int connectionTimeout;
+
+  public URL getUrl() {
+    return url;
+  }
+
+  public int getConnectionTimeout() {
+    return connectionTimeout;
+  }
+}
+```
+
+Et voici le service qui l'injecte et utilise ses attributs :
+
+```java
+@Service
+public class RemoteService {
+
+  @Autowired
+  private RemoteServiceConfiguration remoteServiceConfiguration;
+
+  @PostConstruct
+  public void connect() throws IOException {
+    URLConnection openConnection = remoteServiceConfiguration.getUrl().openConnection();
+    openConnection.setConnectTimeout(remoteServiceConfiguration.getConnectionTimeout());
+  }
+}
+```
+
+Cette implémentation implique que la classe ***RemoteService*** dépend de la classe ***RemoteServiceConfiguration***. Pour éviter ccela, nous pouvons injecter directement les attributs sans créer de dépendance en utilisant le langage SpEL :
+
+```java
+@Service
+public class RemoteService {
+
+  @Value("#{remoteServiceConfiguration.url}")
+  private URL url;
+  @Value("#{remoteServiceConfiguration.connectionTimeout}")
+  private int connectionTimeout;
+
+  @PostConstruct
+  public void connect() throws IOException {
+    URLConnection openConnection = url.openConnection();
+    openConnection.setConnectTimeout(connectionTimeout);
+  }
+}
+```
+
+Il est possible d'accéder aux **attributs** et aux **méthodes** d'un bean :
+
+```elm
+produit.nom.toUppercase()
+```
+
+Il est également possible d'accéder aux **méthodes statiques** d'une classe :
+
+```elm
+T(java.lang.Math).min(stock.prixPlancher, stock.prixAlerte)
+```
+
+# Spring AOP : programmation orientée aspect
+
