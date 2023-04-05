@@ -14,7 +14,7 @@ L'inversion de contrôle est un **patron d'architecture** qui fonctionne selon l
 
 Traditionnellement, chaque objet est responsable de la **création** et de la **gestion** de ses propres **dépendances**, ce qui peut entraîner un fort **couplage** entre les objets et rendre le code difficile à **maintenir** et à faire **évoluer**. Les objets sont également plus difficilement **testables** individuellement.
 
-Avec l'inversion de contrôle, cette responsabilité est **inversée** et  déléguée à un **conteneur IoC**.
+Avec l'inversion de contrôle, cette responsabilité est **inversée** et déléguée à un **conteneur IoC**.
 
 Spring se base sur **l'injection de dépendances** pour mettre en place l'inversion de contrôle.
 
@@ -707,3 +707,250 @@ T(java.lang.Math).min(stock.prixPlancher, stock.prixAlerte)
 
 # Spring AOP : programmation orientée aspect
 
+En programmation orientée objet, il arrive souvent qu'un **même traitement** soit effectué à plusieurs endroits dans le code, notamment lors de l'appel à différentes méthodes. Par exemple, lors d'un accès à une base de données, il faut gérer une transaction. Ou encore, lorsque l'on se connecte à un service tiers, qu'on écrit dans des fichiers de log, ou bien qu'on gère la sécurisation... Tout ceci peut se faire via le paradigme objet en créant des objets spécifiques à ces traitements, mais cela implique une **dépendance** directe à ces classes et donc une perte en **souplesse** de l'application.
+
+C'est la raison pour laquelle la **Programmation Orientée Aspect (AOP)** a été introduite. **Spring AOP** s'appuie sur **AspectJ**, qui est le projet de la communauté Java le plus avancé pour intégrer l'AOP au langage.
+
+L'AOP est utilisée pour implémenter des **fonctionnalités transverses** (*cross-cutting concerns*) et de rendre l'architecture plus **modulaire**.
+
+Un **aspect** représente une catégorie d'actions à réaliser sous certaines conditions. Plutôt que d'appeler du code dans les différentes clases de l'application, nous définissons des **points** à partir desquels l'aspect doit s'**exécuter**. Puis, à l'aide d'un tisseur d'aspects (*weaver*), le flot normal d'exécution de l'application va être modifié afin d'exécuter les actions de ces aspects aux points voulus.
+
+Deux approches de l'AOP existent :
+
+- approche statique : elle modifie le code lors de la compilation pour introduire aux points voulus l'exécutions des aspects (complexe)
+- approche dynamique : elle est réalisée lors de l'exécution de l'application (surcoût négligeable)
+
+Le support de la programmation orientée aspects par Spring se limite aux appel de méthodes : avant, après ou en lieu et place d'une méthode.
+
+## Terminologie
+
+- **Aspect** : la problématique spécifique que l'on veut ajouter transversalement à l'architecture de l'application
+- **JoinPoint** : le point dans le flot d'exécution à partir duquel on souhaite ajouter la logique d'exécution de l'aspect
+- **Advice** : l'action à exécuter. Avec Spring AOP, il s'agit toujours de l'appel d'une méthode. Il définit si c'est avant, après ou à la place
+- **PointCut** : une expression qui définit l'ensemble des JoinPoint éligibles pour l'Advice
+- **Target object** : l'objet sur lequel est appliqué l'aspect
+- **Weaving** : le processus qui permet de réaliser l'insertion de l'aspect (compilation ou exécution). Spring AOP le fait lors de la création du contexte d'application
+
+## Intégration dans une application Spring Boot
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+## Intégration dans une application sans Spring Boot
+
+```xml
+<dependency>
+  <groupId>org.springframework</groupId>
+  <artifactId>spring-aop</artifactId>
+  <version>5.3.1</version>
+</dependency>
+
+<dependency>
+  <groupId>org.aspectj</groupId>
+  <artifactId>aspectjrt</artifactId>
+  <version>1.9.6</version>
+</dependency>
+
+<dependency>
+  <groupId>org.aspectj</groupId>
+  <artifactId>aspectjweaver</artifactId>
+  <version>1.9.6</version>
+</dependency>
+```
+
+Puis utilisation de l'annotation ***@EnableAspectJAutoProxy*** :
+
+```java
+@EnableAspectJAutoProxy
+@Configuration
+@ComponentScan
+public class Application {
+
+  public static void main(String[] args) throws InterruptedException {
+    try (AnnotationConfigApplicationContext appCtx =
+                  new AnnotationConfigApplicationContext(Application.class)) {
+      // ...
+    }
+  }
+
+}
+```
+
+## Exemple de programmation orientée Aspect avec Spring AOP
+
+Imaginons qu'une classe BusinessService réalise un traitement important pour notre application :
+
+```java
+package fr.leblanc;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class BusinessService {
+
+  public void doSomething() {
+    System.out.println("réalise un traitement important pour l'application");
+  }
+
+}
+```
+
+Nous souhaitons introduire un aspect de *logging* : nous voulons tracer tous les appels aux méthodes des classes se terminant par ***Service***. 
+
+Nous définissons donc une classe aspect :
+
+```java
+package fr.leblanc;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class LogAspect {
+
+  @Before("execution(public * fr.leblanc.*Service.*(..))")
+  public void log(JoinPoint joinPoint) {
+    System.out.printf("Appel de %s avec %d paramètres%n",
+                      joinPoint.toShortString(),
+                      joinPoint.getArgs().length);
+  }
+
+}
+```
+
+Ici, l'*advice* est la méthode ***log***(...), l'annotation ***@Before*** indique qu'il s'applique avant l'appel à une méthode. Le *pointcut* est l'attribut de cette annotation indiquant les méthodes  qui sont impactées par cet *advice* :
+
+```properties
+"execution(public * fr.leblanc.*Service.*(..))"
+```
+
+Le *designator* ***execution()*** indique que le *pointcut* décrit l'appel à une méthode. Dans notre exemple, il s'agit des méthodes publiques, qui retournent n'importe quoi (y compris ***void***), qui appartiennent à une classe du package ***fr.leblanc***, dont le nom se termine par ***Service*** et quels que soient les paramètres déclarés.
+
+La méthode *advice* ***log*** attend un paramètre de type ***JoinPoint***. Il représente le point de jonction et permet d'accéder à des informations en utilisant notamment l'API de réflexivité de Java.
+
+L'exécution de la méthode ***doSomething*** entraîne en sortie :
+
+```properties
+Appel de execution(BusinessService.doSomething()) avec 0 paramètres
+réalise un traitement important pour l'application
+```
+
+Autre exemple :
+
+```java
+package fr.leblanc;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterThrowing;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class LogAspect {
+
+  @Pointcut("execution (public * fr.leblanc.*Service.*(..))")
+  public void methodCall() {}
+
+  @Before("methodCall()")
+  public void log(JoinPoint joinPoint) {
+    System.out.printf("Appel de %s avec %d paramètres%n",
+                      joinPoint.toShortString(),
+                      joinPoint.getArgs().length);
+  }
+
+  @AfterThrowing(pointcut = "methodCall()", throwing = "e")
+  public void log(JoinPoint joinPoint, Throwable e) {
+    System.out.printf("Retour de %s avec une exception %s%n",
+                      joinPoint.toShortString(),
+                      e.getClass().getSimpleName());
+  }
+}
+```
+
+## L'AOP et l'utilisation des annotations
+
+Un *pointcut* peut se baser sur la présence d'annotations pour déclencher un *advice*.
+
+Imaginons que l'on souhaite mettre en place un système de supervision des performances de notre application en traçant des alertes lorsque l'exécution de certaines méthodes est trop longue. 
+
+Pour cela nous définissons l'annotation ***@Supervision*** avec l'attribut ***dureeMillis*** qui définit la durée maximale tolérée :
+
+```java
+package fr.leblanc;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Supervision {
+
+  int dureeMillis();
+
+}
+```
+
+Et notre classe ***BusinessService*** devient alors :
+
+```java
+package fr.leblanc;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class BusinessService {
+
+  @Supervision(dureeMillis = 5)
+  public void doSomething() {
+    System.out.println("réalise un traitement important pour l'application");
+    // ...
+  }
+
+}
+```
+
+Enfin, nous définissons notre aspect :
+
+```java
+package fr.leblanc.aop;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class SupervisionAspect {
+
+  @Around("@annotation(supervision)")
+  public Object superviser(ProceedingJoinPoint joinPoint, Supervision supervision)
+                      throws Throwable {
+    long maxDuree = supervision.dureeMillis();
+    long start = System.currentTimeMillis();
+    try {
+      return joinPoint.proceed(joinPoint.getArgs());
+    } finally {
+      long end = System.currentTimeMillis();
+      long duree = end - start;
+      if (duree > maxDuree) {
+        System.out.printf("Attention l'appel à %s a duré %dms soit %dms de plus qu'attendu%n",
+                          joinPoint.toShortString(), duree, duree - maxDuree);
+      }
+    }
+  }
+
+}
+```
