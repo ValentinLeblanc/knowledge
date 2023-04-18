@@ -500,3 +500,76 @@ Plusieurs types de retour peuvent être utilisés dans Spring Web MVC :
 - ***ModelAndView*** : l'objet est alors utilisé pour déduire l'identifiant de la vue et les données du modèle
 - ***@ResponseBody*** : si la méthode possède cette annotation, cela signifie que l'objet retourné constitue la réponse. Il est possible d'utiliser un convertisseur pour le transformer, par exemple, en réponse JSON
 
+## La gestion des formulaires avec Thymeleaf
+
+**Thymeleaf** permet de créer un formulaire HTML lié à un objet présent dans le modèle. Chaque champ du formulaire sera initialisé avec la valeur d'une propriété de cet objet. Lorsque l'utilisateur soumettra les données du formulaire au serveur, champ champ du formulaire alimentera une propriété d'un objet du même type reçu par le contrôleur.
+
+Cette opération qui consiste à remplir un objet Java via des données de formulaire s'appelle le ***binding***.
+
+Exemple :
+
+```java
+public class Item {
+
+    private String name;
+    private String code;
+    private int quantity;
+
+    // Getters/setters omis
+
+}
+```
+
+Voici le contrôleur associé :
+
+```java
+@Controller
+public class ItemController {
+
+    @GetMapping(path = "/item")
+    public String displayForm(@ModelAttribute Item item) {
+        // TODO initialiser le bean de formulaire si nécessaire
+        return "itemForm";
+    }
+
+    @PostMapping(path = "/item")
+    public String processForm(@ModelAttribute Item item) {
+        // TODO traiter le formulaire
+        return "successProcessItem";
+    }
+}
+
+```
+
+Voici la vue qui permet de saisir les informations d'un ***Item*** :
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+
+<form action="#" method="post" data-th-action="@{/item}" data-th-object="${item}" accept-charset="utf-8">
+  <p><label>Code : </label><input type="text" data-th-field="*{code}"></p>
+  <p><label>Nom : </label><input type="text" data-th-field="*{name}"></p>
+  <p><label>Quantité : </label><input type="number" data-th-field="*{quantity}"></p>
+  <button type="submit">Envoyer</button>
+</form>
+
+</body>
+</html>
+
+```
+
+Pour la méthode GET ci-dessus, l'exemple suivant est équivalent :
+
+```java
+@GetMapping(path = "/item")
+public String displayForm(Model model) {
+    Item item = new Item();
+    model.addAttribute("item", item);
+    return "itemForm";
+}
+```
