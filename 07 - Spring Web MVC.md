@@ -573,3 +573,243 @@ public String displayForm(Model model) {
     return "itemForm";
 }
 ```
+
+## Externalisation des messages
+
+L'externalisation des messages consiste à créer dans un fichier externe un mapping entre une clé et la valeur d'un message.
+
+Ceci a 2 avantages :
+
+- cela permet de ne pas écrire en dur dans le code les messages et donc de rendre leur utilisation dynamique via un fichier de propriétés
+- cela facilite l'internalisation (I18N) d'une application
+
+Ceci est réalisable via la classe ***ResourceBundle*** de l'API standard de Java.
+
+Par exemple, nous pouvons avoir un fichier de propriétés ***messages.properties*** suivant :
+
+```properties
+welcome.title = Bienvenue dans l'application
+welcome.text = Cette application est disponible en plusieurs langues.
+```
+
+Ainsi qu'un fichier spécifique pour l'anglais ***messages_en.properties*** :
+
+```properties
+welcome.title = Welcome in this application
+welcome.text = This application is available for different languages.
+```
+
+Il faut placer ces fichiers dans le classpath et le tour est joué (***src/main/resources***).
+
+Nous pouvons alors utiliser ces messages comme ceci :
+
+```java
+ResourceBundle bundle = ResourceBundle.getBundle("messages", Locale.ENGLISH);
+String title = bundle.getString("welcome.title");
+String message = bundle.getString("welcome.text");
+
+System.out.println(title);
+System.out.println(message);
+```
+
+Avec **Spring Web MVC**, le ***ResourceBundle*** est créé automatiquement, c'est la raison pour laquelle l'appel à ***getBundle*** renvoie quelque chose.
+
+Par défaut, Spring utilise les fichiers placés dans le dossier ***src/main/resources*** et qui commencent par ***messages*** (ex : *messages.properties*, *messages_it.properties*, *messages_en.properties*...)
+
+### Avec Spring Boot
+
+Il est possible de modifier le préfixe des fichiers de messages avec la propriété suivante :
+
+```properties
+spring.messages.basename=keys
+```
+
+### Sans Spring Boot
+
+Il suffit d'ajouter un bean de type ***MessageSource*** dans le contexte d'application :
+
+```java
+@Bean
+public MessageSource messageSource() {
+  ResourceBundleMessageSource source = new ResourceBundleMessageSource();
+  source.setBasename("messages");
+  return source;
+}
+```
+
+## Validation des paramètres d'une requête
+
+Spring Web MVC permet de valider les données envoyées au serveur et éventuellement d'afficher des messages d'erreur dans les vues.
+
+### Le binding
+
+Le binding est le mécanisme qui consiste à mettre à jour l'état d'un objet avec les données saisies par l'utilisateur. Lors de cette opération, un autre mécanisme entre en jeu : la validation (avec Spring Web MVC). Spring fournit la classe ***BindingResult*** qui stocke le résultat du binding d'un objet et ses erreur éventuelles. Dans la méthode de contrôleur, cet objet doit être placé **après** l'objet qui représente les données.
+
+Exemple :
+
+```java
+@Controller
+public class ItemController {
+
+  @GetMapping("/item")
+  public String displayForm(@ModelAttribute Item item) {
+    return "itemForm";
+  }
+
+  @PostMapping("/item")
+  public String processForm(@ModelAttribute Item item, BindingResult bindingResult) {
+    if (bindingResult.hasErrors()) {
+      return "itemForm";
+    }
+    // ...
+    return "successProcessItem";
+  }
+}
+```
+
+### Validation dans la méthode du contrôleur
+
+La manière la plus directe est de faire la validation est de le faire directement dans la méthode du contrôleur.
+
+```java
+@PostMapping("/item")
+public String processForm(@ModelAttribute Item item, BindingResult bindingResult) {
+  ValidationUtils.rejectIfEmpty(bindingResult, "name", "empty");
+  ValidationUtils.rejectIfEmpty(bindingResult, "code", "empty");
+  if (item.getQuantity() <= 0) {
+    bindingResult.rejectValue("quantity", "invalid");
+  }
+  if (bindingResult.hasErrors()) {
+    return "itemForm";
+  }
+  // ...
+  return "successProcessItem";
+}
+```
+
+La classe ***ValidationUtils*** permet d'ajouter des codes d'erreur dans l'objet ***bindingResult***. (exemple de code d'erreur : "empty.item.code", "invalid.item.quantity")
+
+### Création d'un validateur
+
+Il est mieux de déléguer la validation d'une requête à classe dédiée à cet effet implémentant l'interface ***Validator***.
+
+Exemple précédent repris :
+
+```java
+@Component
+public class ItemValidator implements Validator {
+
+  @Override
+  public boolean supports(Class<?> clazz) {
+    return Item.class.equals(clazz);
+  }
+
+  @Override
+  public void validate(Object target, Errors errors) {
+    Item item = (Item) target;
+    ValidationUtils.rejectIfEmpty(errors, "name", "empty");
+    ValidationUtils.rejectIfEmpty(errors, "code", "empty");
+    if (item.getQuantity() <= 0) {
+      errors.rejectValue("quantity", "invalid");
+    }
+  }
+
+}
+```
+
+Et voici le nouveau code du contrôleur :
+
+```java
+@Controller
+public class ItemController {
+
+  @GetMapping("/item")
+  public String displayForm(@ModelAttribute Item item) {
+    return "itemForm";
+  }
+
+  @PostMapping("/item")
+  public String processForm(@Validated @ModelAttribute Item item,
+                            BindingResult bindingResult) {
+    if (bindingResult.hasErrors()) {
+      return "itemForm";
+    }
+    // ...
+    return "successProcessItem";
+  }
+}
+```
+
+On voit qu'il faut ajouter l'annotation ***@Validated*** sur le paramètre ***item*** de la méthode POST pour que la validation ait lieu.
+
+### Validation déclarative avec Bean Validation
+
+Il existe une API standard Java pour réaliser une validation déclarative : ***Bean Validation***.
+
+Spring intègre automatiquement ce standard s'il trouve une implémentation de cette API au lancement de l'application.
+
+Avec Spring Boot :
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+Sans Spring Boot :
+
+```xml
+<dependency>
+  <groupId>org.hibernate</groupId>
+  <artifactId>hibernate-validator</artifactId>
+  <version>5.4.2.Final</version>
+</dependency>
+```
+
+Bean Validation repose sur une famille d'annotations qui sont positionnées sur les attributs d'un bean pour indiquer les contraintes à respecter.
+
+Exemple :
+
+```java
+public class Item {
+
+  @NotBlank(message = "Le nom ne peut pas être vide !")
+  private String name;
+
+  @NotBlank(message = "Le code ne peut pas être vide !")
+  private String code;
+
+  @Min(value = 1, message = "La quantité doit être positive !")
+  private int quantity;
+
+  // Getters/setters omis
+
+}
+```
+
+Et le code du contrôleur :
+
+```java
+@Controller
+public class ItemController {
+
+  @GetMapping("/item")
+  public String displayForm(@ModelAttribute Item item) {
+    return "itemForm";
+  }
+
+  @PostMapping("/item")
+  public String processForm(@Validated @ModelAttribute Item item,
+                            BindingResult bindingResult) {
+    if (bindingResult.hasErrors()) {
+      return "itemForm";
+    }
+    // ...
+    return "successProcessItem";
+  }
+}
+```
+
+Même chose ici, il faut ajouter l'annotation ***@Validated*** sur le paramètre désiré.
+
