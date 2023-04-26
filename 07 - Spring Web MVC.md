@@ -813,3 +813,146 @@ public class ItemController {
 
 Même chose ici, il faut ajouter l'annotation ***@Validated*** sur le paramètre désiré.
 
+## POST-redirect-GET
+
+Lorsque l'utilisateur envoie une requête de type POST au serveur, il signifie qu'il souhaite apporter des modifications à l'état des données du serveur. Si cette même requête est émise deux fois, la norme HTTP ne garantit pas qu'il n'y aura pas des effets de bord sur le serveur. 
+
+De plus, lorsqu'une page obtenue par une méthode POST est actualisée sur un navigateur Web, alors la réquête est émise une seconde fois.
+
+Ainsi, pour éviter ce genre de problème, il est conseillé d'utiliser le principe du **POST/redirect/GET** qui consiste à produire une réponse HTTP de redirection (avec le statut 302 ou 303) pour rediriger le navigateur vers une nouvelle adresse et lui faire "oublier" la requête POST.
+
+Un contrôleur Spring Web MVC peut déclencher automatiquement une réponse de redirection en préfixant la chaine de caractères retournée par ***redirect:*** . Il y a également la notion **d'attributs Flash** : ils sont stockés en session jusqu'à la prochaine requête de l'utilisateur. Pour les utiliser, il faut ajouter en paramètre de la méthode du contrôleur un argument de type ***RedirectAttributes***. L'attribut flash sera automatiquement ajouté dans le modèle.
+
+Exemple :
+
+```java
+@Controller
+public class IndexController {
+
+    @GetMapping(path="/")
+    public String home(RedirectAttributes redirectAttributes) {
+        Item item = new Item();
+        item.setCode("BV-34");
+        item.setName("Mon item");
+        redirectAttributes.addFlashAttribute("item", item);
+        return "redirect:/autre-page";
+    }
+
+    @GetMapping(path="/autre-page")
+    public String redirectHome(@ModelAttribute Item item) {
+        // Le paramètre item correspond à l'instance ajoutée comme attribut flash
+        return "view";
+    }
+}
+
+```
+
+## La gestion des exceptions
+
+Lorsqu'un contrôleur échoue dans le traitement d'une requête et lève une exception, le serveur retourne par défaut une réponse HTTP 500 (erreur interne). Cependant, il est possible d'annoter une exception avec ***@ResponseStatus*** pour signifier que le code de la réponse doit être différent (ainsi que le message d'erreur). Ceci est fait grâce à la classe ***DefaultHandlerExceptionResolver***.
+
+Exemple :
+
+```java
+ @ResponseStatus(value=HttpStatus.NOT_FOUND, reason="No such Order")  // 404
+ public class OrderNotFoundException extends RuntimeException {
+     // ...
+ }
+```
+
+Et le contrôleur :
+
+```java
+ @RequestMapping(value="/orders/{id}", method=GET)
+ public String showOrder(@PathVariable("id") long id, Model model) {
+     Order order = orderRepository.findOrderById(id);
+
+     if (order == null) throw new OrderNotFoundException(id);
+
+     model.addAttribute(order);
+     return "orderDetail";
+ }
+```
+
+Il est également possible de prendre en charge n'importe quel type d'exception dans le contrôleur avec l'annotation ***@ExceptionHandler*** et de retourner un identifiant de vue spécifique à l'erreur :
+
+```java
+@Controller
+public class ItemController {
+
+    @ExceptionHandler(ItemException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleItemException(ItemException e, Model model) {
+        model.addAttribute("message", e.getMessage());
+        return "itemError";
+    }
+
+    @PostMapping("/item")
+    public String processForm(@ModelAttribute Item item) throws ItemException {
+        if (item.getQuantity() == 0) {
+            throw new ItemException("Item not available");
+        }
+        // ...
+        return "successProcessItem";
+    }
+```
+
+## Méthodes de modèle @ModelAttribute
+
+Il est possible d'ajouter des éléments dans le modèle quel que soit la requête émise vers un contrôleur. Ainsi, ces éléments seront disponibles dans la vue. Il faut pour cela ajouter l'annotation ***@ModelAttribute*** à une méthode, et elle sera appelée avant la méthode de traitement de la requête, et l'objet qu'elle retourne sera ajouté au modèle.
+
+Exemple :
+
+```java
+@Controller
+@RequestMapping(path="/item/{code}")
+public class ItemEditController {
+
+        @ModelAttribute
+        public Item getItem(@PathVariable String code) {
+                Item item = new Item();
+                item.setCode(code);
+
+                // ...
+
+                return item;
+        }
+
+        @GetMapping
+        public String viewItem(@ModelAttribute Item item) {
+
+                // ...
+
+                return "showItem";
+        }
+}
+```
+
+L'instance ***Item*** créée par la méthode ***getItem()*** est ajoutée au modèle et peut être récupérée dans la méthode ***viewItem()*** via l'annotation ***@ModelAttribute*** sur le paramètre ***item***. 
+
+## @ControllerAdvice
+
+Il est possible de centraliser des méthodes annotées avec ***@ExceptionHandler***, ***@ModelAttribute*** et ***@InitBinder*** dans une classe annotée avec ***@ControllerAdvice*** pour qu'elles s'appliquent à un ensemble de contrôleurs sans avoir besoin de les dupliquer.
+
+Exemple :
+
+```java
+@ControllerAdvice("fr.leblanc")
+public class ItemControllerAdvice {
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
+        binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, false));
+    }
+
+    @ExceptionHandler(ItemException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleItemException(ItemException e, Model model) {
+        model.addAttribute("message", e.getMessage());
+        return "itemError";
+    }
+}
+```
+
+Ici, tous les contrôleurs déclarés dans le package "fr.leblanc" bénéficieront automatiquement de la méthode de binding et de la méthode de gestion d'exeption.
