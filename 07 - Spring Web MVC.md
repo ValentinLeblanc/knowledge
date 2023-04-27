@@ -1155,7 +1155,7 @@ Date: Tue, 06 Mar 2018 10:00:00 GMT
 {"name":"mon item","code":"1337","quantity":1}
 ```
 
-## *@RestControllerAdvice*
+## @RestControllerAdvice
 
 Cette annotation est composée de ***@ControllerAdvice*** et de ***@ResponseBody***. Elle permet de réutiliser les méthodes annotées avec ***@ExceptionHandler***, ***@InitBinder*** et ***@ModelAttribute***. 
 
