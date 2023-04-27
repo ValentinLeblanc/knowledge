@@ -956,3 +956,276 @@ public class ItemControllerAdvice {
 ```
 
 Ici, tous les contrôleurs déclarés dans le package "fr.leblanc" bénéficieront automatiquement de la méthode de binding et de la méthode de gestion d'exeption.
+
+# Les API Web avec Spring Web MVC
+
+Une API Web est une application qui fonctionne de la même façon qu'un site Web traditionnel, la différence se situe principalement sur le format des données échangées entre le serveur et le client. Pour un site Web, il s'agit principalement de contenu au format HTML, alors qu'une API Web échange du contenu **JSON** ou **XML**, de façon à ce que le client puisse directement traiter les données.
+
+## Configuration
+
+Pour une application **avec** Spring Boot, aucune configuration n'est à prévoir pour le format de représentation des données échangées car tout est fait par défaut.
+
+Pour une application **sans** Spring Boot, il est nécessaire d'ajouter les dépendances suivantes pour la production de réponses au formats JSON et XML :
+
+Pour JSON (sans Spring boot) :
+
+```xml
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.9.4</version>
+</dependency>
+```
+
+Pour XML (sans Spring boot) :
+
+```xml
+<dependency>
+    <groupId>com.fasterxml.jackson.dataformat</groupId>
+    <artifactId>jackson-dataformat-xml</artifactId>
+    <version>2.9.4</version>
+</dependency>
+```
+
+## L'annotation @RestController
+
+Cette annotation permet de signaler qu'un contrôleur est spécialisé pour le développement d'une API Web. Il regroupe ***@Controller*** et ***@ResponseBody***. Il s'agit donc d'un contrôleur dont les méthodes retournent par défaut les données à envoyer au client plutôt qu'un identifiant de vue.
+
+Prenons un exemple avec une classe java ***Item*** simple pour représenter les données du modèle :
+
+```java
+public class Item {
+
+    private String name;
+
+    private String code;
+
+    private int quantity;
+
+    // Getters/setters omis
+
+}
+```
+
+Nous pouvons alors déclarer un contrôleur permettant de d'obtenir une représentation JSON d'une instance d'***Item*** :
+
+```java
+@RestController
+@RequestMapping("/api")
+public class ItemController {
+
+    @GetMapping(path="/item", produces= "application/json")
+    public Item getItem() {
+        Item item = new Item();
+        item.setCode("XV-32");
+        item.setName("Weird stuff");
+        item.setQuantity(10);
+        return item;
+    }
+
+}
+```
+
+L'attribut ***produces*** permet de signifier à Spring Web MVC qu'il doit convertir l'instance d'***Item*** au format JSON avant de l'envoyer au client.
+
+C'est la bibliothèque **Jackson** qui réalise la sérialisation au format JSON de l'objet Java.
+
+Si nous interrogeons notre API localement, voici le résultat obtenu :
+
+```json
+curl http://localhost:8080/myapp/api/item
+
+{"name":"Weird stuff","code":"XV-32","quantity":10}
+```
+
+## La négociation de contenu
+
+HTTP permet la négociation de contenu proactive : un client peut envoyer ses préférences au serveur lors d'une requête. Par exemple, un client peut envoyer le format dans lequel il souhaite recevoir les données du serveur.
+
+Ceci est fait via l'en-tête ***Accept*** de la requête HTTP.
+
+Un contrôleur peut donc produire plusieurs formats différents pour une même requête, cela se traduit par l'attribut ***produces*** :
+
+```java
+@RestController
+@RequestMapping("/api")
+public class ItemController {
+
+    @GetMapping(path="/item", produces= {"application/json", "application/xml"})
+    public Item getItem() {
+        Item item = new Item();
+        item.setCode("XV-32");
+        item.setName("Weird stuff");
+        item.setQuantity(10);
+        return item;
+    }
+
+}
+```
+
+Par défaut, c'est le format **JSON** qui sera privilégié car c'est le premier de la liste. Cependant, si un client émet la requête suivante :
+
+```
+curl -H "Accept: application/xml" http://localhost:8080/myapp/api/item
+```
+
+Alors la réponse sera :
+
+```xml
+<Item><name>Weird stuff</name><code>XV-32</code><quantity>10</quantity></Item>
+```
+
+## L'envoi de données
+
+Pour envoyer des données au serveur via un corps de requête, il faut utiliser l'attribut ***consumes*** ainsi que l'annotation ***@RequestBody*** :
+
+```java
+@RestController
+@RequestMapping("/api")
+public class ItemController {
+
+    @PostMapping(path="/items", consumes="application/json")
+    @ResponseStatus(code=HttpStatus.CREATED)
+    public void createItem(@RequestBody Item item) {
+        // ...
+    }
+
+}
+```
+
+Nous pouvons alors envoyer la requête suivante à notre serveur local :
+
+```
+curl -H "Content-type: application/json" -d '{"name":"mon item","code":"1337","quantity":1}' http://localhost:8080/myapp/api/items
+```
+
+## La réponse
+
+Par défaut, la réponse envoyée par un contrôleur Web API est 200 si la méthode retourne un objet et 204 (No Content) si la méthode retourne void.
+
+Il est possible de modifier le code de la réponse avec ***@ResponseStatus*** :
+
+```java
+@PostMapping(path="/items", consumes={"application/json", "application/xml"})
+@ResponseStatus(code=HttpStatus.CREATED)
+public void createItem(@RequestBody Item item) {
+    // ...
+}
+```
+
+Il est possible de contrôler plus finement le contenu de la réponse avec le type ***ResponseEntity<T>*** :
+
+```java
+@RestController
+@RequestMapping("/api")
+public class ItemController {
+
+    @PostMapping(path="/items", consumes="application/json", produces="application/json")
+    public ResponseEntity<Item> createItem(@RequestBody Item item,
+                                           UriComponentsBuilder uriBuilder) {
+
+        // ...
+
+        URI uri = uriBuilder.path("/api/items/{code}").buildAndExpand(item.getCode()).toUri();
+        return ResponseEntity.created(uri).body(item);
+    }
+
+}
+```
+
+Ici, on crée un objet ***ResponseEntity*** qui aura le code 201 (Created) et dont l'en-tête ***location*** sera le lien vers la ressource créée. C'est pour cela que l'on crée un objet ***URI*** avec le lien de notre Item.
+
+
+
+Si nous envoyons la requête suivante au serveur :
+
+```
+curl -i -H "Content-type: application/json" -d '{"name":"mon item","code":"1337","quantity":1}' http://localhost:8080/myapp/api/items
+```
+
+Alors la réponse ressemblera à ça :
+
+```json
+HTTP/1.1 201
+Location: http://localhost:8080/myapp/api/items/1337
+Content-Type: application/json;charset=UTF-8
+Transfer-Encoding: chunked
+Date: Tue, 06 Mar 2018 10:00:00 GMT
+
+{"name":"mon item","code":"1337","quantity":1}
+```
+
+## *@RestControllerAdvice*
+
+Cette annotation est composée de ***@ControllerAdvice*** et de ***@ResponseBody***. Elle permet de réutiliser les méthodes annotées avec ***@ExceptionHandler***, ***@InitBinder*** et ***@ModelAttribute***. 
+
+Elle permet en plus de sérialiser la réponse des méthodes de gestion des exceptions.
+
+## Les annotations Jackson
+
+Pour tester la sérialisation d'un objet avec **Jackson**, on peut utiliser la classe ***ObjectMapper*** ou ***XmlMapper*** :
+
+```java
+Object obj = new Item();
+
+ObjectMapper objectMapper = new ObjectMapper();
+System.out.println(objectMapper.writeValueAsString(obj));
+```
+
+Voici un exemple d'utilisation des annotations **Jackson** sur notre classe ***Item*** :
+
+```java
+@JsonRootName("item")
+@JsonPropertyOrder({"quantite", "nom"})
+public class Item {
+
+    @JsonProperty("nom")
+    private String name;
+	
+    @JsonIgnore
+    private String code;
+
+    private int quantity;
+
+    // Getters/setters omis
+
+}
+```
+
+La sérialisation JSON donnera alors : 
+
+```json
+{"quantity":1,"nom":"Weird stuff"}
+```
+
+## Implémentation d'un client : RestTemplate
+
+La classe ***RestTemplate*** permet d'effectuer des requêtes HTTP, tout en effectuant les conversions JSON/XML => Java et Java => JSON/XML.
+
+Exemple :
+
+```java
+public class WebApiClient {
+
+    public static void main(String[] args) throws Exception {
+        RestTemplate client = new RestTemplate();
+        URI uri = new URI("http://localhost:8080/myapp/api/items");
+
+        HttpHeaders requestHeaders = new HttpHeaders();
+        requestHeaders.set("Content-type", "application/json");
+
+        Item item = new Item();
+        item.setCode("1337");
+        item.setName("weird stuff");
+        item.setQuantity(1);
+
+        HttpEntity<Item> entity = new HttpEntity<Item>(item, requestHeaders);
+        ResponseEntity<Item> responseEntity = client.postForEntity(uri, entity, Item.class);
+
+        System.out.println(responseEntity.getHeaders().getLocation());
+        Item itemResultat = responseEntity.getBody();
+        System.out.println(itemResultat.getCode());
+    }
+
+}
+```
