@@ -539,8 +539,94 @@ public class Main {
         
         double totalPrice = bigBox.getPrice();
         System.out.println("Total price: $" + totalPrice);
-		
 	}
 }
+```
+
+## Decorator
+
+**Problème**
+
+Lorsque l'on souhaite enrichir le comportement d'une classe, on peut le faire via un héritage, mais cela implique de le faire de façon statique (peu flexible) et une seule fois : il devient compliqué d'associer plusieurs modifications au comportement initial sans créer une floraison de classes filles et une complexité grandissante.
+
+**Solution**
+
+Créer un *décorateur* pour ce type d'objet : cela permet de placer l'objet de base à l'intérieur d'une autre classe implémentant la même interface, et déléguant son comportement à l'objet qu'elle contient, tout en enrichissant le comportement. Il est possible alors de créer autant de décorateurs que l'on souhaite pour additionner leurs comportements respectifs.
+
+**Exemple**
+
+```java
+public interface TextGenerator {
+	String generateText();
+}
+```
+
+```java
+public class BasicTextGenerator implements TextGenerator {
+	@Override
+	public String generateText() {
+		return "Basic text generated!";
+	}
+}
+```
+
+```java
+public class BaseTextGeneratorDecorator implements TextGenerator {
+
+	private TextGenerator wrappedTextGenerator;
+	
+	public BaseTextGeneratorDecorator(TextGenerator wrappedTextGenerator) {
+		this.wrappedTextGenerator = wrappedTextGenerator;
+	}
+	
+	@Override
+	public String generateText() {
+		return wrappedTextGenerator.generateText();
+	}
+}
+```
+
+```java
+public class ToUpperCaseTextGeneratorDecorator extends BaseTextGeneratorDecorator {
+
+	public ToUpperCaseTextGeneratorDecorator(TextGenerator wrappedTextGenerator) {
+		super(wrappedTextGenerator);
+	}
+	
+	@Override
+	public String generateText() {
+		return super.generateText().toUpperCase();
+	}
+}
+```
+
+```java
+public class BeginEndTextGeneratorDecorator extends BaseTextGeneratorDecorator {
+
+	public BeginEndTextGeneratorDecorator(TextGenerator wrappedTextGenerator) {
+		super(wrappedTextGenerator);
+	}
+	
+	@Override
+	public String generateText() {
+		return "begin: " + super.generateText() + ", end";
+	}
+}
+```
+
+```java
+public class Main {
+	
+	public static void main(String[] args) {
+		TextGenerator textGenerator = new BeginEndTextGeneratorDecorator(new ToUpperCaseTextGeneratorDecorator(new BasicTextGenerator()));
+		System.out.println(textGenerator.generateText());
+	}
+}
+```
+
+Résultat :
+
+```
+begin: BASIC TEXT GENERATED!, end
 ```
 
