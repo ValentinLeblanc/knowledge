@@ -630,3 +630,167 @@ Résultat :
 begin: BASIC TEXT GENERATED!, end
 ```
 
+## Proxy
+
+**Problème**
+
+Lorsqu'il est fastidieux de faire des appels à un service car il demande beaucoup de ressources, ou bien qu'il faille appliquer certains droits avant d'effectuer telle ou telle opération vers ce service, ou bien qu'il faille logger les appels faits vers ce service... Cela demande de dupliquer du code à chaque appel au service, ou bien cela prend du temps.
+
+**Solution**
+
+Créer un objet *Proxy* qui va encapsuler notre service et effectuer les opérations nécessaires avant de lui déléguer le travail.
+
+**Exemple**
+
+```java
+public interface DownloadService {
+	String download(String url);
+}
+```
+
+```java
+public class FileDownloadService implements DownloadService {
+	@Override
+	public String download(String url) {
+		System.out.println("Downloading from url...");
+		String downloadResult = "Download result";
+		return downloadResult;
+	}
+}
+```
+
+```java
+public class FileDownloadServiceProxy implements DownloadService {
+
+	private Map<String, String> resultCache = new HashMap<>();
+	private FileDownloadService fileDownloadService;
+	
+	public FileDownloadServiceProxy() {
+		fileDownloadService = new FileDownloadService();
+	}
+	
+	@Override
+	public String download(String url) {
+		return resultCache.computeIfAbsent(url, k -> fileDownloadService.download(k));
+	}
+}
+```
+
+# Patrons comportementaux
+
+## Chaîne de responsabilité
+
+**Problème**
+
+Lorsque l'on a besoin de lancer plusieurs étapes de traitement dans un ordre bien précis, que certains retours de traitement peuvent annuler l'exécution d'autres traitements, il est difficile de maintenir le code existant lors de l'ajout de nouveaux traitements.
+
+**Solution**
+
+Créer une chaine de traitements qui permet de faire circuler une demande tout au long d'une chaîne de handlers sans coupler la classe du client au différents classes de traitement. L'ordre d'exécution peut être défini lors de l'exécution.
+
+**Exemple**
+
+```java
+public interface CarChainHandler {
+	void setNextHandler(CarChainHandler nextHandler);
+	boolean start(Car car);
+	boolean process(Car car);
+}
+```
+
+```java
+public abstract class CarBaseChainHandler implements CarChainHandler {
+
+	private CarChainHandler nextHandler;
+	
+	public static CarChainHandler link(CarChainHandler first, CarChainHandler... handlers) {
+		CarChainHandler head = first;
+		for (CarChainHandler next : handlers) {
+			head.setNextHandler(next);
+			head = next;
+		}
+		
+		return first;
+	}
+	
+	@Override
+	public void setNextHandler(CarChainHandler nextHandler) {
+		this.nextHandler = nextHandler;
+	}
+	
+	@Override
+	public boolean start(Car car) {
+		
+		if (process(car) && nextHandler != null) {
+			return nextHandler.start(car);
+		}
+		
+		return false;
+	}
+	
+	@Override
+	public boolean process(Car car) {
+		return true;
+	}
+}
+```
+
+```java
+public class NameCheckCarChainHandler extends CarBaseChainHandler {
+
+	@Override
+	public boolean process(Car car) {
+		
+		if (car.getName() == null || car.getName().isBlank()) {
+			System.out.println("This car has no name!");
+			return false;
+		}
+		System.out.println("OK, this name is fine");
+		return true;
+	}
+}
+```
+
+```java
+public class NumberOfSeatsCarChainHandler extends CarBaseChainHandler {
+	
+	@Override
+	public boolean process(Car car) {
+		if (car.getNumberOfSeats() < 2) {
+			System.out.println("This car has less than 2 seats!");
+			return false;
+		}
+		System.out.println("OK, we cant sit in this car");
+		return true;
+	}
+}
+```
+
+```java
+public class EngineCarChainHandler extends CarBaseChainHandler {
+	
+	@Override
+	public boolean process(Car car) {
+		if (car.getEnginePower() < 410.0) {
+			System.out.println("This car is a snail!");
+			return false;
+		}
+		System.out.println("OK, we can ride this car");
+		return true;
+	}
+}
+```
+
+```java
+public static void main(String[] args) {
+		CarChainHandler chain = CarBaseChainHandler.link(new NameCheckCarChainHandler(),
+                                                         new NumberOfSeatsCarChainHandler(),
+                                                         new EngineCarChainHandler());
+		Car car = new Car();
+		car.setName("CAR_001");
+		car.setNumberOfSeats(4);
+		car.setEnginePower(435);
+		chain.start(car);
+	}
+```
+
