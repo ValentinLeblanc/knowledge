@@ -794,3 +794,180 @@ public static void main(String[] args) {
 	}
 ```
 
+## Commande
+
+**Problème**
+
+Le traitement d'une action nécessite parfois d'être exécuté de façon asynchrone, d'être placé dans une queue, de pouvoir être rétabli... Il est ardu de répondre à tous ces besoins sans utiliser le patron Commande.
+
+**Solution**
+
+Convertir les demandes ou les traitements simples en objets avec paramètres.
+
+**Exemple**
+
+```java
+public abstract class MoneyCommand {
+
+	protected Wallet wallet;
+	private Double backup;
+	
+	protected MoneyCommand(Wallet wallet) {
+		this.wallet = wallet;
+	}
+	
+	public Wallet getWallet() {
+		return wallet;
+	}
+	
+	protected void backup() {
+		this.backup = wallet.getMoney();
+	}
+	
+	public abstract boolean execute();
+	
+	public void undo() {
+		wallet.setMoney(backup);
+	}
+}
+```
+
+```java
+public class IncrementMoneyCommand extends MoneyCommand {
+
+	protected IncrementMoneyCommand(Wallet wallet) {
+		super(wallet);
+	}
+
+	@Override
+	public boolean execute() {
+		backup();
+		wallet.setMoney(wallet.getMoney() + 1);
+		return true;
+	}
+}
+```
+
+```java
+public class DoubleMoneyCommand extends MoneyCommand {
+
+	protected DoubleMoneyCommand(Wallet wallet) {
+		super(wallet);
+	}
+
+	@Override
+	public boolean execute() {
+		backup();
+		wallet.setMoney(wallet.getMoney() * 2);
+		return true;
+	}
+}
+```
+
+```java
+public class ClearMoneyCommand extends MoneyCommand {
+
+	protected ClearMoneyCommand(Wallet wallet) {
+		super(wallet);
+	}
+
+	@Override
+	public boolean execute() {
+		backup();
+		wallet.setMoney(0.0);
+		return true;
+	}
+}
+```
+
+```java
+public class Wallet {
+
+	private Double money;
+	
+	public Wallet(Double money) {
+		this.money = money;
+	}
+
+	public Double getMoney() {
+		return money;
+	}
+
+	public void setMoney(Double moneyAmount) {
+		this.money = moneyAmount;
+	}
+}
+```
+
+```java
+import java.util.Deque;
+import java.util.LinkedList;
+
+public class MoneyCommandHistory {
+
+	private Deque<MoneyCommand> history = new LinkedList<>();
+	
+	public void push(MoneyCommand command) {
+		history.push(command);
+	}
+	
+	public MoneyCommand pop() {
+		return history.pop();
+	}
+	
+	public boolean isEmpty() {
+		return history.isEmpty();
+	}
+}
+```
+
+```java
+private static MoneyCommandHistory history = new MoneyCommandHistory();
+	
+	public static void main(String[] args) {
+		Wallet wallet = new Wallet(12.0);
+		
+		System.out.println("Start: wallet has currently " + wallet.getMoney() + " €");
+		
+		executeCommand(new DoubleMoneyCommand(wallet));
+		executeCommand(new IncrementMoneyCommand(wallet));
+		executeCommand(new DoubleMoneyCommand(wallet));
+		executeCommand(new IncrementMoneyCommand(wallet));
+		executeCommand(new ClearMoneyCommand(wallet));
+		undo();
+		undo();
+		undo();
+		undo();
+		undo();
+	}
+	
+	private static void executeCommand(MoneyCommand command) {
+		if (command.execute()) {
+			history.push(command);
+			System.out.println("Command executed: wallet has currently " + command.getWallet().getMoney() + " €");
+		}
+	}
+	
+	private static void undo() {
+		if (!history.isEmpty()) {
+			MoneyCommand lastCommand = history.pop();
+			lastCommand.undo();
+			System.out.println("Undo command: wallet has currently " + lastCommand.getWallet().getMoney() + " €");
+		}
+	}
+```
+
+```
+Start: wallet has currently 12.0 €
+Command executed: wallet has currently 24.0 €
+Command executed: wallet has currently 25.0 €
+Command executed: wallet has currently 50.0 €
+Command executed: wallet has currently 51.0 €
+Command executed: wallet has currently 0.0 €
+Undo command: wallet has currently 51.0 €
+Undo command: wallet has currently 50.0 €
+Undo command: wallet has currently 25.0 €
+Undo command: wallet has currently 24.0 €
+Undo command: wallet has currently 12.0 €
+```
+
