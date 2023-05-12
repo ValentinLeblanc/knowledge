@@ -26,6 +26,14 @@ public class UserDao {
 }
 ```
 
+## L'interface Repository
+
+Spring Data s'organise autour de la notion de *repository* et fournit une interface générique : ***Repository<T, ID>***.
+
+T correspond au type de l'objet géré par le repository, et ID correspond au type de la clé d'un objet.
+
+L'interface **CrudRepository<T, ID>** hérite de ***Repository<T, ID>*** et fournit un ensemble d'opérations élémentaires pour la manipulation des objets.
+
 ## Intégration de JPA
 
 ### Avec Spring Boot
@@ -261,3 +269,15 @@ spring.dao.exceptiontranslation.enabled = false
 ```
 
 # Spring Data JPA
+
+**Spring Data JPA** est le module de Spring Data qui permet d'interagir avec une **base de données relationnelle** en représentation les objets du modèle métier sous la forme **d'entités** **JPA**.
+
+ Il fournit l'interface **CrudRepository<T, ID>** qui hérite de ***Repository<T, ID>*** et fournit un ensemble de méthodes plus spécifiquement adaptées pour interagir avec une base de données relationnelle.
+
+Exemple de *repository* :
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+}
+```
+
