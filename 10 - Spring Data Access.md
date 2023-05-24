@@ -281,3 +281,27 @@ public interface UserRepository extends JpaRepository<User, Long> {
 }
 ```
 
+## Injection des repositories
+
+A l'initialisation du contexte d'application, Spring Data JPA va rechercher à partir du package de base toutes les interfaces héritant de ***Repository<T, ID>***, et créer un **bean d'implémentation** portant le même nom que l'interface.
+
+Il suffit alors d'injecter un bean du même type que l'interface pour y avoir accès :
+
+```java
+@Repository
+public class UserService {
+
+  @Autowired
+  private UserRepository userRepository;
+
+  @Transactional
+  public void doSomething(long id) {
+    long nbUser = userRepository.count();
+    boolean exists = userRepository.existsById(id);
+
+    // ..
+  }
+}
+```
+
+## Ajout de méthodes dans une interface de repository
