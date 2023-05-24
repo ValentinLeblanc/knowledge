@@ -98,3 +98,149 @@ C'est un ensemble de paires de clé/valeur contenant des informations relatives 
 
 C'est un mécanisme qui rend toute persistance possible. Il fournit des opérations CRUD pour les instanciations de **JobLauncher**, **Job** et **Step**.
 
+## JobLauncher
+
+Il permet de démarrer un **Job** en lui associant des **JobParameters**.
+
+## Exemple
+
+```java
+@Configuration
+public class SpringBatchConfig {
+
+	@Value("${inputFile}")
+	private Resource inputFile;
+
+	@Bean
+	public Job bankJob(JobRepository jobRepository, ItemWriter<BankTransaction> bankTransactionItemWriter,
+			PlatformTransactionManager transactionManager,
+			ItemProcessor<BankTransaction, BankTransaction> bankTransactionItemProcessor) {
+		Step step = new StepBuilder("step-load-data", jobRepository)
+				.<BankTransaction, BankTransaction>chunk(100, transactionManager).reader(itemReader())
+				.processor(bankTransactionItemProcessor).writer(bankTransactionItemWriter).build();
+
+		return new JobBuilder("bank-data-loader-job", jobRepository).start(step).build();
+	}
+
+	@Bean
+	public ItemReader<BankTransaction> itemReader() {
+		FlatFileItemReader<BankTransaction> flatFileItemReader = new FlatFileItemReader<>();
+		flatFileItemReader.setName("CSV-READER");
+		flatFileItemReader.setResource(inputFile);
+		flatFileItemReader.setLinesToSkip(1);
+		flatFileItemReader.setLineMapper(lineMapper());
+		return flatFileItemReader;
+	}
+
+	@Bean
+	public LineMapper<BankTransaction> lineMapper() {
+		DefaultLineMapper<BankTransaction> lineMapper = new DefaultLineMapper<>();
+		DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
+		lineTokenizer.setDelimiter(",");
+		lineTokenizer.setStrict(false);
+		lineTokenizer.setNames("id", "accountID", "strTransactionDate", "transactionType", "amount");
+		lineMapper.setLineTokenizer(lineTokenizer);
+		BeanWrapperFieldSetMapper<BankTransaction> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
+		fieldSetMapper.setTargetType(BankTransaction.class);
+		lineMapper.setFieldSetMapper(fieldSetMapper);
+		return lineMapper;
+	}
+
+}
+```
+
+```java
+@RestController
+public class JobRestController {
+
+	@Autowired
+	private JobLauncher jobLauncher;
+	
+	@Autowired
+	private Job job;
+	
+	@GetMapping("/startJob")
+	public BatchStatus load() throws Exception {
+		
+		Map<String, JobParameter<?>> parameters = new HashMap<>();
+		parameters.put("time", new JobParameter<>(System.currentTimeMillis(), Long.class));
+		JobParameters jobParameters = new JobParameters(parameters);
+		
+		JobExecution jobExecution = jobLauncher.run(job, jobParameters);
+		
+		while (jobExecution.isRunning()) {
+			System.out.println("...");
+		}
+		
+		return jobExecution.getStatus();
+	}
+}
+```
+
+```java
+@Entity
+public class BankTransaction {
+
+	@Id
+	private Long id;
+	private Long accountID;
+	private Date transactionDate;
+	@Transient
+	private String strTransactionDate;
+	private String transactionType;
+	private double amount;
+    
+    // getters, setters
+}
+```
+
+```java
+@Component
+public class BankTransactionItemProcessor implements ItemProcessor<BankTransaction, BankTransaction> {
+
+	private DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy-HH:mm");
+	
+	@Override
+	public BankTransaction process(BankTransaction bankTransaction) throws Exception {
+		bankTransaction.setTransactionDate(dateFormat.parse(bankTransaction.getStrTransactionDate()));
+		return bankTransaction;
+	}
+}
+```
+
+```java
+@Component
+public class BankTransactionItemWriter implements ItemWriter<BankTransaction> {
+
+	@Autowired
+	private BankTransactionRepository bankTransactionRepository;
+	
+	@Override
+	public void write(Chunk<? extends BankTransaction> chunk) throws Exception {
+		bankTransactionRepository.saveAll(chunk);
+	}
+}
+```
+
+```java
+public interface BankTransactionRepository extends JpaRepository<BankTransaction, Long> {
+}
+```
+
+Fichier **application.properties** :
+
+```properties
+inputFile=classpath:/data.csv
+spring.batch.job.enabled=false
+```
+
+Fichier **data.csv** : (dans ***src/main/resources***)
+
+```css
+transaction_id,account_number,transaction_date,transaction_type,transaction_amount
+540300,10025436,17/10/2018-09:44,D,10000.570
+545004,48541165,18/10/2018-12:55,D,1645.23
+840407,64829873,18/10/2018-14:31,D,6987.41
+140321,22629137,19/10/2018-23:02,D,110.22
+```
+

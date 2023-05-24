@@ -305,3 +305,47 @@ public class UserService {
 ```
 
 ## Ajout de méthodes dans une interface de repository
+
+En complément des méthodes déjà présentes dans l'interface ***JpaRepository<T, ID>***, il est possible de créer d'autres méthodes qui, selon leur nom, permettront d'effectuer des requêtes sans avoir besoin de les implémenter, Spring Data JPA se chargera de fournir l'implémentation automatiquement. On appelle ces méthodes des **query methods**.
+
+Exemple :
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+  User getByLogin(String login);
+  long countByEmail(String email);
+  List<User> findByNameAndEmail(String name, String email);
+  List<User> findByNameOrEmail(String name, String email);
+}
+```
+
+Cette interface va engendrer les implémentations sous-jacentes suivantes :
+
+```java
+
+return entityManager.createQuery("select u from User u where u.login = :login", User.class)
+                  .setParameter("login", login)
+                  .getSingleResult();
+```
+
+```java
+return (Long) entityManager.createQuery("select count(u) from User u where u.email = :email")
+                         .setParameter("email", email)
+                         .getSingleResult();
+```
+
+```java
+return entityManager.createQuery("select u from User u where u.name = :name and u.email = :email", User.class)
+                  .setParameter("name", name)
+                  .setParameter("email", email)
+                  .getResultList();
+
+```
+
+```java
+return entityManager.createQuery("select u from User u where u.name = :name or u.email = :email", User.class)
+                  .setParameter("name", name)
+                  .setParameter("email", email)
+                  .getResultList();
+```
+
