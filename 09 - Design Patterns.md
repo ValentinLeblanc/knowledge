@@ -303,7 +303,7 @@ public class Car implements Copyable {
 
 # Patrons structurels
 
-## Adapteur
+## Adaptateur
 
 **Problème**
 
@@ -370,7 +370,7 @@ public class Main {
 }
 ```
 
-## Bridge
+## Pont
 
 **Problème**
 
@@ -543,7 +543,7 @@ public class Main {
 }
 ```
 
-## Decorator
+## Décorateur
 
 **Problème**
 
@@ -969,5 +969,138 @@ Undo command: wallet has currently 50.0 €
 Undo command: wallet has currently 25.0 €
 Undo command: wallet has currently 24.0 €
 Undo command: wallet has currently 12.0 €
+```
+
+## Itérateur
+
+**Objectif**
+
+Parcourir une structure de données complexe de façon séquentielle sans exposer ses détails internes.
+
+**Problème**
+
+Lorsque l'on manipule des collections complexes, comme des arbres ou des tableaux, et qu'une logique de parcours de ces collections doit être respectée, le détail de parcours peut polluer le code client. De plus, il est compliqué de maintenir un tel code et de le faire évoluer sans perturber le code client.
+
+**Solution**
+
+Utiliser une interface *Iterator* qui encapsule la collection et qui permet de réaliser des opérations telles que : élément suivant, élément précédent, fin de du parcours...
+
+**Exemple**
+
+```java
+public interface CarPowerIterator {
+	boolean hasNext();
+	Car getNext();
+	void reset();
+}
+```
+
+```java
+public class BMWCarPowerIterator implements CarPowerIterator {
+
+	private List<Car> internalList;
+	private int currentPosition = 0;
+	
+	public BMWCarPowerIterator(List<Car> carList, String carType) {
+		this.internalList = carList.stream().filter(car -> "BMW".equals(car.getBrand()) && car.getType().equals(carType)).sorted((c1, c2) -> c1.getPower().compareTo(c2.getPower())).toList();
+	}
+
+	@Override
+	public boolean hasNext() {
+		return currentPosition < internalList.size();
+	}
+
+	@Override
+	public Car getNext() {
+		if(!hasNext()) {
+			return null;
+		}
+		return internalList.get(currentPosition++);
+	}
+
+	@Override
+	public void reset() {
+		currentPosition = 0;
+	}
+}
+```
+
+```java
+public class AudiCarPowerIterator implements CarPowerIterator {
+
+	private List<Car> internalList;
+	private int currentPosition = 0;
+	
+	public AudiCarPowerIterator(List<Car> carList, String carType) {
+		this.internalList = carList.stream().filter(car -> "Audi".equals(car.getBrand()) && car.getType().equals(carType)).sorted((c1, c2) -> c1.getPower().compareTo(c2.getPower())).toList();
+	}
+
+	@Override
+	public boolean hasNext() {
+		return currentPosition < internalList.size();
+	}
+
+	@Override
+	public Car getNext() {
+		if(!hasNext()) {
+			return null;
+		}
+		return internalList.get(currentPosition++);
+	}
+
+	@Override
+	public void reset() {
+		currentPosition = 0;
+	}
+}
+```
+
+```java
+	public static void main(String[] args) {
+		List<Car> carList = List.of(new Car("BMW", "diesel", 150), new Car("BMW", "fuel", 120),
+				new Car("Audi", "diesel", 170), new Car("BMW", "diesel", 188), new Car("BMW", "diesel", 105),
+				new Car("Audi", "diesel", 180), new Car("BMW", "fuel", 166), new Car("Audi", "fuel", 80),
+				new Car("Audi", "fuel", 133), new Car("BMW", "diesel", 147), new Car("Audi", "fuel", 143),
+				new Car("BMW", "fuel", 110), new Car("Audi", "diesel", 126), new Car("BMW", "fuel", 135));
+		
+		System.out.println("Printing all BMW diesel:");
+		printIteratorList(new BMWCarPowerIterator(carList, "diesel"));
+		System.out.println("Printing all BMW fuel:");
+		printIteratorList(new BMWCarPowerIterator(carList, "fuel"));
+		System.out.println("Printing all Audi diesel:");
+		printIteratorList(new AudiCarPowerIterator(carList, "diesel"));
+		System.out.println("Printing all Audi fuel:");
+		printIteratorList(new AudiCarPowerIterator(carList, "fuel"));
+		
+	}
+	
+	private static void printIteratorList(CarPowerIterator iterator) {
+		while (iterator.hasNext()) {
+			System.out.println(iterator.getNext());
+		}
+	}
+```
+
+Résultat :
+
+```
+Printing all BMW diesel:
+Car [brand=BMW, type=diesel, power=105]
+Car [brand=BMW, type=diesel, power=147]
+Car [brand=BMW, type=diesel, power=150]
+Car [brand=BMW, type=diesel, power=188]
+Printing all BMW fuel:
+Car [brand=BMW, type=fuel, power=110]
+Car [brand=BMW, type=fuel, power=120]
+Car [brand=BMW, type=fuel, power=135]
+Car [brand=BMW, type=fuel, power=166]
+Printing all Audi diesel:
+Car [brand=Audi, type=diesel, power=126]
+Car [brand=Audi, type=diesel, power=170]
+Car [brand=Audi, type=diesel, power=180]
+Printing all Audi fuel:
+Car [brand=Audi, type=fuel, power=80]
+Car [brand=Audi, type=fuel, power=133]
+Car [brand=Audi, type=fuel, power=143]
 ```
 
