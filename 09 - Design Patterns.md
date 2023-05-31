@@ -680,6 +680,10 @@ public class FileDownloadServiceProxy implements DownloadService {
 
 ## Chaîne de responsabilité
 
+**Objectif**
+
+Faire circuler une demande tout au long d'une chaîne de handlers, jusqu'à ce que l'un ou plusieurs d'entre eux la traite.
+
 **Problème**
 
 Lorsque l'on a besoin de lancer plusieurs étapes de traitement dans un ordre bien précis, que certains retours de traitement peuvent annuler l'exécution d'autres traitements, il est difficile de maintenir le code existant lors de l'ajout de nouveaux traitements.
@@ -795,6 +799,10 @@ public static void main(String[] args) {
 ```
 
 ## Commande
+
+**Objectif**
+
+Convertir des demandes ou des traitements simples en objets.
 
 **Problème**
 
