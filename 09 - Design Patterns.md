@@ -1104,3 +1104,95 @@ Car [brand=Audi, type=fuel, power=133]
 Car [brand=Audi, type=fuel, power=143]
 ```
 
+## Médiateur
+
+**Objectif**
+
+Diminuer le couplage entre les composants d'un programme en les faisant communiquer indirectement via un objet spécial appelé Médiateur.
+
+**Problème**
+
+Lorsque des composants doivent communiquer entre eux, et que chaque composant doit transmettre des messages à beaucoup d'autres composants, la logique communicative peut venir polluer la logique interne du composant.
+
+**Solution**
+
+Créer un objet Médiateur référencé dans chaque composant qui aura pour fonction de transmettre les messages entre chaque composant.
+
+**Exemple**
+
+```java
+public interface PersonMediator {
+	void registerPerson(Person person);
+	void sendMessage(Person sender, String message);
+}
+```
+
+```java
+public class LanguagePersonMediator implements PersonMediator {
+
+	private List<Person> persons = new ArrayList<>();
+	
+	@Override
+	public void registerPerson(Person person) {
+		persons.add(person);
+	}
+	
+	@Override
+	public void sendMessage(Person sender, String message) {
+		persons.stream()
+			.filter(person -> person != sender && person.getLanguage().equals(sender.getLanguage()))
+			.forEach(person -> System.out.println(sender.getName() + " says to " + person.getName() + ": '" + message + "'"));
+	}
+}
+```
+
+```java
+public class Person {
+
+	private String name;
+	private String language;
+	private PersonMediator mediator;
+	
+	public Person(String name, String language, PersonMediator mediator) {
+		this.name = name;
+		this.language = language;
+		this.mediator = mediator;
+		mediator.registerPerson(this);
+	}
+	public void sendMessage(String message) {
+		mediator.sendMessage(this, message);
+	}
+}
+```
+
+```java
+public static void main(String[] args) {
+    PersonMediator mediator = new LanguagePersonMediator();
+
+    Person david = new Person("David", "French", mediator);
+    Person davido = new Person("Davido", "Spanish", mediator);
+    Person davidish = new Person("Davidish", "English", mediator);
+    Person jacques = new Person("Jacques", "French", mediator);
+    Person jaco = new Person("Jaco", "Spanish", mediator);
+    Person jack = new Person("Jack", "English", mediator);
+    Person charles = new Person("Charles", "French", mediator);
+    Person carlos = new Person("Carlos", "Spanish", mediator);
+    Person charly = new Person("Charly", "English", mediator);
+
+    david.sendMessage("Bonjour, je m'appelle David!");
+    jack.sendMessage("Hi, how are you?");
+    carlos.sendMessage("Tengo la camisa negra.");
+}
+```
+
+Résultat :
+
+```
+David says to Jacques: 'Bonjour, je m'appelle David!'
+David says to Charles: 'Bonjour, je m'appelle David!'
+Jack says to Davidish: 'Hi, how are you?'
+Jack says to Charly: 'Hi, how are you?'
+Carlos says to Davido: 'Tengo la camisa negra.'
+Carlos says to Jaco: 'Tengo la camisa negra.'
+```
+
