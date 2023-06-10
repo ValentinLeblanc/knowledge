@@ -1204,3 +1204,146 @@ Carlos says to Davido: 'Tengo la camisa negra.'
 Carlos says to Jaco: 'Tengo la camisa negra.'
 ```
 
+## Mémento
+
+**Objectif**
+
+Prendre des instantanés de l'état d'un objet pour pouvoir les restaurer plus tard.
+
+**Problème**
+
+Lorsque l'on souhaite créer une photo de l'état d'un objet depuis l'extérieur, il faut que tous ses attributs soient exposés. Or, cela est contraire au principe d'encapsulation.
+
+**Solution**
+
+Créer un objet Memento qui va contenir l'état de l'objet et pouvoir le restaurer si nécessaire via un CareTaker.
+
+**Exemple**
+
+```java
+public class Document {
+
+	public Document(String title, String content, String author) {
+		super();
+		this.title = title;
+		this.content = content;
+		this.author = author;
+	}
+
+	private String title;
+	
+	private String content;
+	
+	private String author;
+	
+	public String getTitle() {
+		return title;
+	}
+	
+	public void setTitle(String title) {
+		this.title = title;
+	}
+	
+	public String getContent() {
+		return content;
+	}
+	
+	public void setContent(String content) {
+		this.content = content;
+	}
+	
+	public String getAuthor() {
+		return author;
+	}
+	
+	public void setAuthor(String author) {
+		this.author = author;
+	}
+	
+	public void appendContent(String content) {
+		this.content += content;
+	}
+	
+	public void restore(DocumentMemento memento) {
+		this.title = memento.title;
+		this.content = memento.content;
+		this.author = memento.author;
+	}
+	
+	public DocumentMemento save() {
+		return new DocumentMemento(this.title, this.content, this.author);
+	}
+	
+	@Override
+	public String toString() {
+		return "Document [title=" + title + ", content=" + content + ", author=" + author + "]";
+	}
+	
+	public class DocumentMemento {
+		
+		private String title;
+		private String content;
+		private String author;
+		
+		public DocumentMemento(String title, String content, String author) {
+			super();
+			this.title = title;
+			this.content = content;
+			this.author = author;
+		}
+	}
+}
+```
+
+```java
+public class DocumentCareTaker {
+
+	private Deque<DocumentMemento> history = new LinkedList<>();
+	
+	private Document originator;
+	
+	public DocumentCareTaker(Document originator) {
+		this.originator = originator;
+	}
+	
+	public void undo() {
+		DocumentMemento memento = history.pop();
+		if (memento != null) {
+			originator.restore(memento);
+		}
+	}
+	
+	public void save() {
+		history.push(originator.save());
+	}
+}
+```
+
+```java
+	public static void main(String[] args) {
+		
+		Document doc = new Document("First document", "This is the first content.", "Valentin");
+		
+		DocumentCareTaker careTaker = new DocumentCareTaker(doc);
+		careTaker.save();
+		
+		System.out.println(doc.toString());
+		
+		doc.appendContent(" This is an update");
+		
+		System.out.println(doc.toString());
+		
+		careTaker.undo();
+		
+		System.out.println(doc.toString());
+	}
+```
+
+Résultat :
+
+```
+Document [title=First document, content=This is the first content., author=Valentin]
+Document [title=First document, content=This is the first content. This is an update, author=Valentin]
+Document [title=First document, content=This is the first content., author=Valentin]
+```
+
