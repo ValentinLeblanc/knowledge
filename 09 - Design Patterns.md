@@ -1347,3 +1347,115 @@ Document [title=First document, content=This is the first content. This is an up
 Document [title=First document, content=This is the first content., author=Valentin]
 ```
 
+## Observateur
+
+**Objectif**
+
+Permettre à certains objets d'envoyer des notifications concernant leur état à d'autres objets.
+
+**Problème**
+
+Lorsqu'un objet A souhaite connaître le changement d'état d'un autre objet B, il peut faire des appels vers cet objet B jusqu'à ce que l'état soit changé. Ou bien alors, l'objet B pourrait notifier tous les objets de son changement d'état, mais il pourrait alors notifier des objets qui ne sont pas intéressés par ce changement.
+
+**Solution**
+
+Créer une interface de souscription permettant de s'inscrire ou de se désinscrire à des évènements liés à un changement d'état d'un objet.
+
+**Exemple**
+
+```java
+interface Subject {
+    void registerObserver(BookObserver observer);
+    void removeObserver(BookObserver observer);
+    void notifyObservers();
+}
+```
+
+```java
+class BookStore implements Subject {
+    private List<Book> books;
+    private List<BookObserver> observers;
+
+    public BookStore() {
+        books = new ArrayList<>();
+        observers = new ArrayList<>();
+    }
+
+    public void addBook(Book book) {
+        books.add(book);
+        notifyObservers();
+    }
+
+    public void removeBook(Book book) {
+        books.remove(book);
+        notifyObservers();
+    }
+
+    @Override
+    public void registerObserver(BookObserver observer) {
+        observers.add(observer);
+    }
+
+    @Override
+    public void removeObserver(BookObserver observer) {
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyObservers() {
+        for (BookObserver observer : observers) {
+            observer.update(books);
+        }
+    }
+}
+```
+
+```java
+public interface BookObserver {
+    void update(List<Book> books);
+}
+```
+
+```java
+class Customer implements BookObserver {
+    private String name;
+
+    public Customer(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public void update(List<Book> books) {
+        System.out.println(name + ": Book inventory updated. Total books available: " + books.size());
+    }
+}
+```
+
+```java
+        BookStore bookStore = new BookStore();
+        Customer customer1 = new Customer("John");
+        Customer customer2 = new Customer("Emily");
+
+        bookStore.registerObserver(customer1);
+        bookStore.registerObserver(customer2);
+
+        Book book1 = new Book("Java Programming");
+        Book book2 = new Book("Design Patterns");
+
+        bookStore.addBook(book1); // Notifies both customers
+        bookStore.addBook(book2); // Notifies both customers
+
+        bookStore.removeBook(book1); // Notifies both customers
+```
+
+Résultat :
+
+```
+John: Book inventory updated. Total books available: 1
+Emily: Book inventory updated. Total books available: 1
+John: Book inventory updated. Total books available: 2
+Emily: Book inventory updated. Total books available: 2
+John: Book inventory updated. Total books available: 1
+Emily: Book inventory updated. Total books available: 1
+```
+
