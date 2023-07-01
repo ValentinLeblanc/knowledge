@@ -349,3 +349,46 @@ return entityManager.createQuery("select u from User u where u.name = :name or u
                   .getResultList();
 ```
 
+D'autres ***queryMethods*** peuvent être définies, par exemple des requêtes sur des entités liées.
+
+Par exemple, si ***User*** contient une association vers une entité ***Address*** :
+
+```java
+@Entity
+public class User {
+
+  @Id
+  @GeneratedValue(strategy=GenerationType.IDENTITY)
+  private Long id;
+
+  @OneToOne
+  private Address adress;
+
+  // ...
+}
+```
+
+Et que ***Address*** contient un champ ***City*** :
+
+```java
+@Entity
+public class Address {
+
+  @Id
+  @GeneratedValue(strategy=GenerationType.IDENTITY)
+  private Long id;
+
+  private String city;
+
+  // ...
+}
+```
+
+Alors il est possible de définir une méthode de repository suivante :
+
+```java
+List<User> findByAddressCity(String city);
+```
+
+## Requêtes nommées JPA
+
