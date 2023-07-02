@@ -440,22 +440,273 @@ C'est le module Spring dédié à la gestion des transactions.
 
 ## La transaction
 
-Une transaction est définie par le respect de 4 propriétés ACID :
+Une transaction est définie par le respect de 4 propriétés **ACID** :
 
-- Atomicité
+- **Atomicité**
 
   la transaction garantit que l'ensemble des opérations qui la composent sont soit toutes réalisées avec succès soit aucune n'est conservée
 
-- Cohérence
+- **Cohérence**
 
   la transaction garantit qu'elle fait passer le système d'un état valide vers un autre état valide
 
-- Isolation
+- **Isolation**
 
   Deux transactions réalisées exécutées simultanément produiront le même résultat qu'exécutées l'une après l'autre
 
-- Durabilité
+- **Durabilité**
 
   la transaction garantit qu'après son exécution, les modifications qu'elle a apportées au système sont conservées durablement
 
 **Démarcation transactionnelle** => **commit** ou **rollback**
+
+## Spring Boot et configuration automatique
+
+La plupart des applications qui interagissent avec un SGBDR n'incorporent pas de moteur de gestion des transactions, cette partie étant déléguée au moteur interne de SGBDR. Cependant, il existe un standard Java dédié à la gestion des transactions : **JTA (Java Transaction API)** qui permet aux systèmes d'informations le nécessitant de supporter la gestion de transactions.
+
+Mais cette API n'est pas systématiquement utilisée et il existe des solutions fournies par d'autres technologies.
+
+Par exemple, **JDBC** et **JPA** fournissent toutes deux leur propre solution et leur propre API pour gérer des transactions impliquant des bases de données.
+
+Spring Boot va donc se baser sur les dépendances déclarées dans le projet pour savoir quel gestionnaire de transaction (***TransactionManager***) doit être créé dans le contexte d'application.
+
+Exemple :
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-jdbc</artifactId>
+</dependency>
+```
+
+va créer un bean ***JdbcTransactionManager***
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+```
+
+va créer un bean ***JpaTransactionManager***
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-jta-atomikos</artifactId>
+</dependency>
+```
+
+va créer un bean ***JtaTransactionManager***
+
+## Démarcation transactionnelle
+
+Une **démarcation transactionnelle** désigne une portion de code au début de laquelle une transaction doit être commencée et à la fin de laquelle la transaction doit être validée (***commit***) ou annulée (***rollback***). Souvent, cette démarcation est une **méthode**.
+
+Ce sont en général les **méthodes de la couche service** qui sont des démarcations transactionnelles.
+
+Par défaut, **Spring Data JPA** active par défaut les transactions sur les **méthode de repository**, ce qui peut engendrer des **incohérences** de données : en effet, une méthode de service peut appeler plusieurs méthodes de repository dont l'une peut être invalidée, sans invalider la première.
+
+Il faut donc utliser l'annotation **@EnableJpaRepositories** pour désactiver les transactions par défaut.
+
+```java
+@SpringBootApplication
+@EnableJpaRepositories(enableDefaultTransactions = false)
+public class MyApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(MyApplication.class, args);
+  }
+}
+```
+
+En procédant ainsi, chaque appel à une méthode qui effectue une modification en base de données **devra** être fait dans le **cadre d'une transaction** sinon l'appel échouera.
+
+## L'annotation @Transactional
+
+Elle permet de définir une **démarcation transactionnelle** sur une **méthode**.
+
+```java
+@Service
+public class UserService {
+
+  @Transactional(readOnly = true)
+  public User getUser() {
+    // ...
+  }
+
+  @Transactional
+  public void saveUser(User user) {
+    // ...
+  }
+}
+```
+
+Elle supporte des propriétés afin de pouvoir configurer le support de transaction. Ici, l'attribut ***readOnly*** permet d'indiquer si la transaction est en lecture seule. Si une transaction est définie comme lecture seule, cela permet d'optimiser certaines opérations par le SGBDR.
+
+## Gestion déclarative du *rollback*
+
+Par défaut, une transaction est **invalidée** (*rollback*) uniquement si la méthode transactionnelle échoue à cause d'une *unchecked* exception (comme ***RuntimeException*** ou ***Error***). Sinon, la transaction est **validée** (*commit*).
+
+Donc si une méthode se termine par une *checked* exception, la transaction est considérée comme valide.
+
+Il est possible de modifier ce comportement avec l'attribut ***rollbackFor*** :
+
+```java
+@Service
+public class UserService {
+
+  @Transactional(rollbackFor = UserExistsException.class)
+  public void saveUser(User user) throws UserExistsException, NoEmailException {
+    // ...
+  }
+}
+```
+
+Il existe également l'attribut ***noRollbackFor*** qui fait l'inverse.
+
+Il est possible de configurer un *rollback* systématique pour toutes les exceptions (car elles héritent toutes de ***Exception***) : 
+
+```java
+@Transactional(rollbackFor = Exception.class)
+public void executerService() throws ServiceException {
+  // ...
+}
+```
+
+## Configuration avancée des transactions
+
+### La propagation
+
+Si une méthode est marquée comme transactionnelle, comment doit-elle se comporter si aucune transaction n'a encore été créée ? Si une transaction est déja en cours ? La réponse à ces questions est donnée par la stratégie de propagation via l'attribut ***propagation***.
+
+```java
+@Service
+public class BusinessService {
+
+  @Transactional(propagation = Propagation.REQUIRED)
+  public void doSomething() {
+    // ...
+  }
+}
+```
+
+- **REQUIRED** (par défaut)
+
+  Une transaction doit exister pour l'exécution de la méthode. Si une transaction existe déjà, elle est utilisée. Sinon, une nouvelle transaction est créée
+
+- **REQUIRES_NEW**
+
+​		Une nouvelle transaction est créée systématiquement. Si une transaction préexiste, elle est suspendue le temps de l'appel à la méthode. Si la nouvelle transaction est annulée (rollback), cela n'a aucun impact sur la transaction suspendue qui reprend son exécution. Les deux transactions sont indépendantes
+
+- **SUPPORTS**
+
+​		Si une transaction préexiste, l'appel à la méthode est inclus dedans. Sinon, aucune transaction n'est créée
+
+- **NESTED**
+
+​		Si une transaction préexiste, alors une transaction encapsulée (*nested*) est créée. La transaction encapsulée démarre à partir d'un point de sauvegarde fait depuis la transaction englobante et peut être annulée sans annuler cette dernière. Si aucune transaction n'existe, une nouvelle transaction est créée
+
+- **MANDATORY**
+
+​		Une transaction préexistante est nécessaire, sinon l'appel échoue
+
+- **NEVER**
+
+  Si une transaction préexiste, l'appel échoue. Sinon, aucune transaction n'est créée
+
+- **NOT_SUPPORTED**
+
+​		L'appel à la méthode ne peut pas se faire dans une transaction. Si une transaction préexiste, elle est suspendue.
+
+### L'isolation
+
+L'isolation des transactions signifie que plusieurs transactions s'effectuant simultanément ne devraient pas s'impacter mutuellement, elles doivent être isolées les une des autres. Il existe plusieurs niveaux d'isolation, que l'on peut spécifier via l'attribut ***isolation*** de l'annotation ***@Transactional***.
+
+```java
+@Service
+public class BusinessService {
+
+  @Transactional(isolation = Isolation.READ_COMMITTED)
+  public void doSomething() {
+    // ...
+  }
+
+}
+```
+
+Plusieurs types d'anomalies peuvent survenir lorsque plusieurs transactions s'exécutent simultnément :
+
+- **Lecture sale** (*dirty read*)
+
+  Ce cas survient lorsqu'une transaction peut consulter les données modifiées par une autre transaction qui n'a pas encore été validée, il n'y a donc pas d'isolation
+
+- **Lectures non répétables** (*non repeatable reads*)
+
+​		Une transaction lit des données. Une autre transaction modifie ces données et est validée (*commit*). Si la première transaction relit les données alors ces dernières ont changé, et obtient alors un résultat différent
+
+- **Lectures fantomatiques** (*phantom reads*)
+
+​		Une transaction lit une série d'enregistrements. Une autre transaction ajoute des enregistrements à cette série et est validée (*commit*). Si la première transaction relit les enregistrements, alors elle voit les nouveaux enregistrements
+
+Les niveaux d'isolation possibles sont :
+
+- **DEFAULT** (par défaut)
+
+​		Cette valeur indique qu'il faut utiliser le niveau d'isolation du système transactionnel (exemple : celui configuré dans la base de données)
+
+- **READ_UNCOMMITED**
+
+  Ce niveau autorise la lecture sale, les lectures non répétables et les lectures fantomatiques. C'est une désactivation de l'isolation
+
+- **READ_COMMITED**
+
+​		Ce niveau protège des **lectures sales** mais il autorise les lectures non répétables et les lectures fantomatiques
+
+- **REPEATABLE_READ**
+
+​		Ce niveau protège des **lectures sales** et des **lectures non répétables** mais il autorise les lectures fantomatiques
+
+- **SERIALIZABLE**
+
+  Ce niveau protège des **lectures sales**, des **lectures non répétables** et des **lectures fantomatiques**. C'est une isolation complète
+
+​	
+
+Le plus souvent, le choix de l'isolation est choisi selon un compromis entre les performances de l'application et un niveau acceptable pour le fonctionnement de l'application. En effet, plus le niveau d'isolation est élevé et plus un système transactionnel doit utiliser des ressources pour le garantir.
+
+## Configuration des transactions sans Spring Boot
+
+Il faut tout d'abord utiliser l'annotation ***@EnableTransactionManagement*** et déclarer un bean implémentant l'interface ***TransactionManager***.
+
+Exemple d'implémentations disponibles : ***DataSourceTransactionManager***, ***JtaTransactionManager***, ***JpaTransactionManager***...
+
+Exemple :
+
+```java
+@Configuration
+@ComponentScan
+@EnableTransactionManagement
+public class MyApplication {
+
+  @Bean
+  public LocalEntityManagerFactoryBean entityManagerFactory() {
+    LocalEntityManagerFactoryBean factoryBean = new LocalEntityManagerFactoryBean();
+    factoryBean.setPersistenceUnitName("database");
+    return factoryBean;
+  }
+
+  @Bean
+  public TransactionManager transactionManager(EntityManagerFactory emf) {
+    return new JpaTransactionManager(emf);
+  }
+
+  public static void main(String[] args) {
+    try(AnnotationConfigApplicationContext appCtx =
+                 new AnnotationConfigApplicationContext(MyApplication.class)) {
+      // ...
+    }
+  }
+}
+```
+
