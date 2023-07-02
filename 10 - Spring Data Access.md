@@ -390,5 +390,72 @@ Alors il est possible de définir une méthode de repository suivante :
 List<User> findByAddressCity(String city);
 ```
 
-## Requêtes nommées JPA
+## Implémentation des méthodes de Repository
 
+Il est parfois nécessaire d'implémenter soi-même une ou plusieurs méthodes de Repository.
+
+Il faut alors créer une interface dédiée, par exemple ***UserCustomRepository*** :
+
+```java
+public interface UserCustomRepository {
+
+  void doSomethingComplicatedWith(User u);
+
+}
+```
+
+et faire hériter l'interface ***UserRepository*** initiale avec cette interface custom.
+
+```java
+public interface UserRepository extends UserCustomRepository, JpaRepository<User, Long>{
+
+}
+```
+
+Spring Data JPA va alors injecter une classe Java portant le même nom que ***UserCustomRepository*** avec le suffixe ***Impl***.
+
+Il ne <u>faut pas</u> ajouter ***@Component*** ou ***@Repository*** sur la classe d'implémentation.
+
+```java
+public class UserCustomRepositoryImpl implements UserCustomRepository {
+
+  @PersistenceContext
+  private EntityManager em;
+
+  @Override
+  public void doSomethingComplicatedWith(User u) {
+    // ...
+  }
+
+}
+```
+
+# Spring transaction
+
+C'est le module Spring dédié à la gestion des transactions.
+
+- Il fournit une abstraction au dessus des différentes solutions du monde Java avec l'interface ***TransactionManager*** et plusieurs implémentations
+- il se base sur l'**AOP**
+- il permet une gestion déclarative des transactions
+
+## La transaction
+
+Une transaction est définie par le respect de 4 propriétés ACID :
+
+- Atomicité
+
+  la transaction garantit que l'ensemble des opérations qui la composent sont soit toutes réalisées avec succès soit aucune n'est conservée
+
+- Cohérence
+
+  la transaction garantit qu'elle fait passer le système d'un état valide vers un autre état valide
+
+- Isolation
+
+  Deux transactions réalisées exécutées simultanément produiront le même résultat qu'exécutées l'une après l'autre
+
+- Durabilité
+
+  la transaction garantit qu'après son exécution, les modifications qu'elle a apportées au système sont conservées durablement
+
+**Démarcation transactionnelle** => **commit** ou **rollback**
