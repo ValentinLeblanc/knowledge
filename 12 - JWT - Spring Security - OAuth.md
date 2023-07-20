@@ -160,3 +160,92 @@ Pour obtenir le résultat :
 Hello from secure endpoint
 ```
 
+# OAuth
+
+## Introduction
+
+**OAuth** est un standard créé pour permettre à un <u>service d'accéder à d'autres services</u> au nom d'un utilisateur donné.
+
+**OAuth** est fait pour **l'autorisation**, pas pour l'authentification, et pour **l'autorisation de services**, pas pour l'autorisation de personnes physiques.
+
+## Analogie
+
+Une analogie connue de OAuth est le concept de **voiturier**.
+
+Lorsqu'une personne confie sa voiture à un voiturier, elle lui donne une clé différence de la sienne : une clé avec un accès restreint. Cette clé permet d'allumer et d'éteindre la voiture, mais elle ne permet pas d'ouvrir le coffre ou la boite à gant, par exemple.
+
+Le **propriétaire** utilise alors deux <u>services</u> : la **voiture** et le **voiturier**.
+
+Le voiturier a besoin d'un accès direct à la voiture pour faire son travail, le propriétaire lui donne alors une clé avec un accès restreint.
+
+## Le flux OAuth
+
+Premièrement : le service tiers **demande au service principal** des informations concernant un utilisateur.
+
+Puis, le service principal **demande à l'utilisateur** une confirmation de cette demande.
+
+Si elle est acceptée, le service principal **donne un Token** d'autorisation avec accès restreint au service tiers.
+
+Ce Token est au format **JWT**.
+
+## Terminologies
+
+Nous utiliserons l'exemple suivant :
+
+Un service Web d'impression/livraison de photos numériques souhaite accéder à certaines photos du Google Drive d'un utilisateur.
+
+### Ressource
+
+C'est l'élément auquel un service tiers souhaite accéder (les photos).
+
+### Propriétaire de ressource
+
+Celui qui a accès aux ressources (l'utilisateur Google Drive) et qui peut donner l'accès au service tiers (le service d'impression).
+
+### Serveur de ressource
+
+C'est le serveur qui héberge les ressources (Google Drive).
+
+### Client
+
+L'application qui a besoin d'un accès aux ressources (le service d'impression).
+
+### Serveur d'autorisation
+
+C'est le serveur qui fournit des Token d'accès au client.
+
+## Flux code d'autorisation
+
+- L'utilisateur est connecté au Client et lui demande d'accéder aux ressources du serveur de ressource
+- Le client demande au serveur d'autorisation un accès aux ressources
+- Le serveur d'autorisation demande au propriétaire de ressource si **ce** Client peut accéder à **ces** ressources
+- Le propriétaire confirme la demande
+- Le serveur d'autorisation donne un **Token d'autorisation** au Client
+- Le Client contacte le serveur autorisation avec le Token d'autorisation et lui demande un **Token d'accès**
+- Le client contacte le serveur de ressource avec le Token d'accès
+
+## Flux implicite (moins sécurisé)
+
+- L'utilisateur est connecté au Client et lui demande d'accéder aux ressources du serveur de ressource
+- Le client demande au serveur d'autorisation un accès aux ressources
+- Le serveur d'autorisation demande au propriétaire de ressource si **ce** Client peut accéder à **ces** ressources
+- Le propriétaire confirme la demande
+- Le serveur d'autorisation donne un **Token d'accès** au Client
+- Le client contacte le serveur de ressource avec le Token d'accès
+
+## Flux d'informations d'identification du client (pour microservices)
+
+Imaginons que le Microservice 1 fasse une requête au Microservice 2 qui lui-même est en contact avec une base de données.
+
+Le Microservice 2 travaille de pair avec un serveur d'autorisation.
+
+- MS1 fait un appel au serveur d'autorisation avec un ID client
+- MS2 donne un Token d'accès restreint
+- MS1 fait un appel à MS2 avec le Token
+- MS2 vérifie l'autorisation
+
+## Conclusion
+
+- OAtuh permet l'autorisation, pas l'authentification
+- Il permet à un service d'accéder à des ressources d'un autre service
+- Plusieurs flux sont possibles
