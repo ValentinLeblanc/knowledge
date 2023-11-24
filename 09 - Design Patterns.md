@@ -1700,3 +1700,240 @@ public class StatePattern {
 }
 ```
 
+## Visiteur
+
+**Objectif**
+
+Permettre d'effectuer des traitements sur des structures complexes sans les associer aux classes du modèle.
+
+**Problème**
+
+Lorsque notre objet métier est complexe (notamment s'il s'agit d'un arbre ou d'un graphe), effectuer un traitement sur ce modèle peut s'avérer compliqué sans perturber les classes le représentant. De plus, l'ajout de nouveaux traitements augmente la complexité de ces objets.
+
+**Solution**
+
+Les traitements sont séparés des objets, les objets implémentent alors une interface commune ***Visited*** contenant une méthode **accept(Visitor v)**, et ***Visitor*** est une interface contenant une méthode **visit(Visited v)**. Chaque objet propage l'objet Visiteur à ses sous-objets.
+
+**Exemple**
+
+```java
+public interface Visitor {
+	void visitCity(City city);
+	void visitBuilding(Building building);
+	void visitFloor(Floor floor);
+	void visitApartment(Apartment apartment);
+}
+```
+
+```java
+public interface Visited {
+	void accept(Visitor visitor);
+}
+```
+
+```java
+public class City implements Visited {
+
+	private String name;
+	
+	private List<Building> buildings = new ArrayList<>();
+	
+	public City(String name) {
+		this.name = name;
+	}
+	
+	public void setBuildings(List<Building> buildings) {
+		this.buildings = buildings;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	@Override
+	public void accept(Visitor visitor) {
+		visitor.visitCity(this);
+		for (Building building : buildings) {
+			building.accept(visitor);
+		}
+	}
+}
+```
+
+```java
+public class Building implements Visited {
+
+	private String name;
+	
+	private List<Floor> floors = new ArrayList<>();
+	
+	public Building(String name) {
+		this.name = name;
+	}
+	
+	public void setFloors(List<Floor> floors) {
+		this.floors = floors;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	@Override
+	public void accept(Visitor visitor) {
+		visitor.visitBuilding(this);
+		for (Floor floor : floors) {
+			floor.accept(visitor);
+		}
+	}
+}
+```
+
+```java
+public class Floor implements Visited {
+
+	private String name;
+	
+	private List<Apartment> apartments = new ArrayList<>();
+	
+	public Floor(String name) {
+		this.name = name;
+	}
+	
+	public void setApartments(List<Apartment> apartments) {
+		this.apartments = apartments;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	@Override
+	public void accept(Visitor visitor) {
+		visitor.visitFloor(this);
+		for (Apartment apartment : apartments) {
+			apartment.accept(visitor);
+		}
+	}
+}
+```
+
+```java
+public class Apartment implements Visited {
+
+	private String name;
+	
+	public String getName() {
+		return name;
+	}
+	
+	public Apartment(String name) {
+		this.name = name;
+	}
+	
+	@Override
+	public void accept(Visitor visitor) {
+		visitor.visitApartment(this);
+	}
+}
+```
+
+```java
+public class EnglishPrinterVisitor implements Visitor {
+
+	@Override
+	public void visitCity(City city) {
+		System.out.println("City: " + city.getName());
+	}
+
+	@Override
+	public void visitBuilding(Building building) {
+		System.out.println("	Building: " + building.getName());
+	}
+
+	@Override
+	public void visitFloor(Floor floor) {
+		System.out.println("		Floor: " + floor.getName());
+	}
+
+	@Override
+	public void visitApartment(Apartment apartment) {
+		System.out.println("			Apartment: " + apartment.getName());
+	}
+}
+```
+
+```java
+public class FrenchPrinterVisitor implements Visitor {
+
+	@Override
+	public void visitCity(City city) {
+		System.out.println("Ville: " + city.getName());
+	}
+
+	@Override
+	public void visitBuilding(Building building) {
+		System.out.println("	Immeuble: " + building.getName());
+	}
+
+	@Override
+	public void visitFloor(Floor floor) {
+		System.out.println("		Etage: " + floor.getName());
+	}
+
+	@Override
+	public void visitApartment(Apartment apartment) {
+		System.out.println("			Appartement: " + apartment.getName());
+	}
+}
+```
+
+```java
+	public static void main(String[] args) {
+		
+		City city1 = new City("City1");
+        Building building1 = new Building("Building1");
+        Floor floor1 = new Floor("Floor1");
+        Apartment apartment1 = new Apartment("Apartment1");
+        Apartment apartment2 = new Apartment("Apartment2");
+
+        floor1.setApartments(List.of(apartment1, apartment2));
+        building1.setFloors(List.of(floor1));
+
+        Building building2 = new Building("Building2");
+        Floor floor2 = new Floor("Floor2");
+        Apartment apartment3 = new Apartment("Apartment3");
+        floor2.setApartments(List.of(apartment3));
+        building2.setFloors(List.of(floor2));
+        city1.setBuildings(List.of(building1, building2));
+        
+        Visitor englishPrinterVisitor = new EnglishPrinterVisitor();
+        city1.accept(englishPrinterVisitor);
+        
+        Visitor frenchPrinterVisitor = new FrenchPrinterVisitor();
+        city1.accept(frenchPrinterVisitor);
+		
+	}
+```
+
+Résultat :
+
+```
+City: City1
+	Building: Building1
+		Floor: Floor1
+			Apartment: Apartment1
+			Apartment: Apartment2
+	Building: Building2
+		Floor: Floor2
+			Apartment: Apartment3
+Ville: City1
+	Immeuble: Building1
+		Etage: Floor1
+			Appartement: Apartment1
+			Appartement: Apartment2
+	Immeuble: Building2
+		Etage: Floor2
+			Appartement: Apartment3
+```
+
