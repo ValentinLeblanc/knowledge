@@ -20,7 +20,7 @@ il s’agit du serveur où sont installés les modules logiciels de l’applicat
   il contient les tables, les index et les données gérées par l’application
 
 **Avantages :**
-    • séparation entre le support (vue et matériel), le logiciel (fonctionnalités) et les données : ce qui permet de faire évoluer chaque partie indépendament des autres
+    • séparation entre le support (vue et matériel), le logiciel (fonctionnalités) et les données : ce qui permet de faire évoluer chaque partie indépendamment des autres
     • seule la partie front-end doit être adaptée pour communiquer avec différents appareils
       
 **Inconvénients :**

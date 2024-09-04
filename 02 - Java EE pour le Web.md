@@ -1,6 +1,6 @@
 ## Serveur d’application
 
-Un serveur d’application forunit un environnement d’exécution qui permet de déployer et d’exécuter une application Java EE.
+Un serveur d’application fournit un environnement d’exécution qui permet de déployer et d’exécuter une application Java EE.
 
 ## Conteneur de Servlets : TOMCAT
 
@@ -29,7 +29,7 @@ Ce dossier contient les bibliothèques Java (.jar) externes nécessaires à l’
 
 ## Les Servlets
 
-Il s’agit un composant Web de Java EE. Elles permettent de traiter une requête entrante sur un serveur et de générer une réponse dynamique. Le plus souvent, elles perrmettent de traiter des **requêtes HTTP**.
+Il s’agit un composant Web de Java EE. Elles permettent de traiter une requête entrante sur un serveur et de générer une réponse dynamique. Le plus souvent, elles permettent de traiter des **requêtes HTTP**.
 
 Il s’agit d’une API définie par la spécification JSR-000369.
 
@@ -138,7 +138,7 @@ Exemple :
 
 Tomcat utilise la nition de royaumes (**Realms**) pour définir des zones sécurisées. Cela permet de configurer différentes stratégies pour valider l’authentification d’un utilisateur. 
 Par exemple, en recherchant un couple login/mot de passe dans une **BDD**, en interrogeant un serveur **LDAP**, ou alors en consultant un **fichier de configuration**. 
-Il est également possible de fournir son propre mécanisme d’authenification en fournissant une bibliothèque Java conforme au standard **JAAS** (Java Authentification and Authorization Service).
+Il est également possible de fournir son propre mécanisme d’authentification en fournissant une bibliothèque Java conforme au standard **JAAS** (Java Authentification and Authorization Service).
 
 Par défaut, un serveur Tomcat est configuré pour consulter un fichier de configuration appelé **tomcat-users.xml**.
 
